@@ -1,20 +1,22 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-
+import GraficoPaciente from "./components/GraficoPaciente";
+import PacientForm from "./components/PacientForm";
+import PacientItem from "./components/PacientItem";
+import PacientList from "./components/PacientList";
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
-
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
-
   return (
     <main className="container">
       <h1>Espirometría</h1>
+      <div className="bg-neutral-950 h-screen w-screen text-white grid grid-cols-12">
+        <div className="col-span-9 bg-neutral-950">
+          <GraficoPaciente />
+        </div>
+        <div className="col-span-3 bg-zinc-900">
+          <PacientForm />
+
+          <PacientList />
+        </div>
+      </div>
     </main>
   );
 }
