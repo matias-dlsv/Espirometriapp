@@ -1,93 +1,180 @@
-import React, { useState } from "react";
-// Importamos las funciones de Tauri v2
+import { useState } from "react";
+import { toast } from "react-hot-toast";
 import {
   writeTextFile,
   readTextFile,
   BaseDirectory,
+  exists,
+  mkdir,
 } from "@tauri-apps/plugin-fs";
+// Importamos el hook Y la interfaz 'Paciente' para tipar los datos
+import { usePacientStore, Paciente } from "../store/pacientStore";
 
 function PacientForm() {
-  const [patientName, setPatientName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [edad, setEdad] = useState("");
+  const [sexo, setSexo] = useState("");
+  const [talla, setTalla] = useState("");
+  const [raza, setRaza] = useState("");
 
-  const handleSave = async () => {
-    if (!patientName.trim()) return; // Evitar guardar nombres vacíos
-    setLoading(true);
+  const addPaciente = usePacientStore((state) => state.addPaciente);
+  const pacientes = usePacientStore((state) => state.pacientes);
+
+  const rangosEdad = [
+    "0-10",
+    "10-20",
+    "20-30",
+    "30-40",
+    "40-50",
+    "50-60",
+    "60-70",
+    "70-80",
+    "80-90",
+    "90+",
+  ];
+
+  // AGREGAMOS TIPO AQUÍ: React.FormEvent
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!nombre.trim() || !edad || !sexo || !talla || !raza) {
+      toast.error("Por favor completa todos los campos", {
+        style: { background: "#202020", color: "#fff" },
+      });
+      return;
+    }
+
+    const existe = pacientes.some(
+      (p) => p.nombre.toLowerCase() === nombre.toLowerCase()
+    );
+
+    if (existe) {
+      toast.error("Este paciente ya existe", {
+        style: { background: "#202020", color: "#fff" },
+      });
+      return;
+    }
+
+    // --- CORRECCIÓN LÓGICA DE ALTURA REAL ---
+    const tallaNum = Number(talla);
+
+    // Validamos que sea un número y un rango humano realista (ej: 20cm a 300cm)
+    if (isNaN(tallaNum) || tallaNum < 20 || tallaNum > 300) {
+      toast.error("Ingresa una altura real en cm (entre 20 y 300)", {
+        style: { background: "#202020", color: "#fff" },
+      });
+      return;
+    }
+    // ----------------------------------------
 
     try {
-      const fileName = "pacientes_db.json";
-      // Usamos AppData porque es para lo que configuramos los permisos
-      const directory = BaseDirectory.AppData;
-
-      // 1. Estructura del nuevo paciente (pensada para espirometría)
-      const nuevoPaciente = {
-        id: crypto.randomUUID(), // Genera un ID único automáticamente
-        nombre: patientName,
+      // AGREGAMOS TIPO AQUÍ: Forzamos que esto sea un 'Paciente'
+      const nuevoPaciente: Paciente = {
+        id: crypto.randomUUID(),
+        nombre,
+        edad,
+        sexo,
+        talla: tallaNum, // Usamos la variable numérica ya convertida
+        raza,
         fechaRegistro: new Date().toLocaleDateString(),
-        // Aquí guardarás los arrays para tus gráficos futuros
         espirometrias: [],
       };
 
-      // 2. Lógica de Base de Datos: Leer lo existente
-      let dataExistente = [];
-      try {
-        // Intentamos leer el archivo
-        const contenido = await readTextFile(fileName, { baseDir: directory });
-        dataExistente = JSON.parse(contenido);
-      } catch (err) {
-        // Si entra aquí, es porque el archivo no existe (es el primer paciente)
-        console.log("Creando base de datos nueva...");
-        dataExistente = [];
+      const fileName = "pacientes_db.json";
+      const directory = BaseDirectory.AppData;
+
+      if (!(await exists("", { baseDir: directory }))) {
+        await mkdir("", { baseDir: directory, recursive: true });
       }
 
-      // 3. Agregar el nuevo paciente a la lista
-      dataExistente.push(nuevoPaciente);
+      // AGREGAMOS TIPO AQUÍ: Definimos que es un array de Pacientes
+      let dataDisco: Paciente[] = [];
 
-      // 4. Guardar la lista actualizada en el disco
-      await writeTextFile(fileName, JSON.stringify(dataExistente, null, 2), {
+      if (await exists(fileName, { baseDir: directory })) {
+        const contenido = await readTextFile(fileName, { baseDir: directory });
+        dataDisco = JSON.parse(contenido);
+      }
+
+      dataDisco.push(nuevoPaciente);
+
+      await writeTextFile(fileName, JSON.stringify(dataDisco, null, 2), {
         baseDir: directory,
       });
 
-      alert(`Paciente "${patientName}" guardado correctamente.`);
-      setPatientName(""); // Limpiar formulario
-    } catch (err) {
-      console.error("Error al guardar:", err);
-      alert("Hubo un error al guardar: " + err);
-    } finally {
-      setLoading(false);
+      addPaciente(nuevoPaciente);
+
+      setNombre("");
+      setEdad("");
+      setSexo("");
+      setTalla("");
+      setRaza("");
+
+      toast.success("Paciente guardado", {
+        duration: 2000,
+        position: "bottom-right",
+        style: { background: "#202020", color: "#fff" },
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al guardar archivo");
     }
   };
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        handleSave();
-      }}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "1rem",
-        maxWidth: "300px",
-      }}
-    >
-      <h3>Registrar Paciente</h3>
-
+    <form onSubmit={onSubmit} className="p-4 bg-zinc-900 rounded-md">
       <input
         type="text"
-        placeholder="Nombre completo"
-        value={patientName}
-        onChange={(e) => setPatientName(e.target.value)}
-        disabled={loading}
-        style={{ padding: "8px" }}
+        placeholder="Nombre del Paciente"
+        value={nombre}
+        onChange={(e) => setNombre(e.target.value)}
+        autoFocus
+        className="w-full bg-zinc-800 text-white p-2 mb-2 rounded border-none outline-none focus:ring-1 focus:ring-blue-500"
       />
 
-      <button
-        type="submit"
-        disabled={loading}
-        style={{ padding: "10px", cursor: "pointer" }}
+      <select
+        value={edad}
+        onChange={(e) => setEdad(e.target.value)}
+        className="w-full bg-zinc-800 text-white p-2 mb-2 rounded border-none outline-none"
       >
-        {loading ? "Guardando..." : "Guardar Paciente"}
+        <option value="">Rango de edad</option>
+        {rangosEdad.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={sexo}
+        onChange={(e) => setSexo(e.target.value)}
+        className="w-full bg-zinc-800 text-white p-2 mb-4 rounded border-none outline-none"
+      >
+        <option value="">Sexo</option>
+        <option value="Masculino">Masculino</option>
+        <option value="Femenino">Femenino</option>
+      </select>
+
+      <input
+        type="number"
+        placeholder="Talla (cm)"
+        value={talla}
+        onChange={(e) => setTalla(e.target.value)}
+        className="w-full bg-zinc-800 text-white p-2 mb-4 rounded border-none outline-none"
+      />
+
+      <select
+        value={raza}
+        onChange={(e) => setRaza(e.target.value)}
+        className="w-full bg-zinc-800 text-white p-2 mb-4 rounded border-none outline-none"
+      >
+        <option value="">Raza</option>
+        <option value="Caucásico">Caucásico</option>
+        <option value="Afrodescendiente">Afrodescendiente</option>
+        <option value="Asiatico">Asiatico</option>
+      </select>
+
+      <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded">
+        Guardar
       </button>
     </form>
   );

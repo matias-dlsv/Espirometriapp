@@ -8,7 +8,9 @@
     "fs:default",
     "fs:allow-appdata-read-recursive",
     "fs:allow-appdata-write-recursive",
-    "fs:allow-document-read-recursive",
-    "fs:allow-document-write-recursive"
+    "fs:allow-write-text-file",
+    "fs:allow-read-text-file",
+    "fs:allow-exists",
+    "fs:allow-mkdir"
   ]
 }

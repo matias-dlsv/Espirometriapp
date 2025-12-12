@@ -17,7 +17,9 @@
     "echarts": "^6.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "tailwindcss": "^4.1.17"
+    "react-hot-toast": "^2.6.0",
+    "tailwindcss": "^4.1.17",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
