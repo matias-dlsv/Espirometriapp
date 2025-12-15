@@ -1,5 +1,45 @@
 import React, { useEffect, useRef } from "react";
-import * as echarts from "echarts";
+
+// 1. Imports de valores (Runtime)
+import * as echarts from "echarts/core";
+import { LineChart } from "echarts/charts";
+import {
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  DatasetComponent,
+} from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
+
+// 2. Imports de TIPOS (TypeScript)
+import type { ComposeOption } from "echarts/core";
+import type { LineSeriesOption } from "echarts/charts";
+import type {
+  TitleComponentOption,
+  TooltipComponentOption,
+  GridComponentOption,
+  DatasetComponentOption,
+} from "echarts/components";
+
+// 3. Registramos los módulos
+echarts.use([
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  DatasetComponent,
+  LineChart,
+  CanvasRenderer,
+]);
+
+// 4. DEFINIMOS EL TIPO COMBINADO
+// Esto le dice a TS: "Mi gráfico solo acepta opciones de Línea, Título, Tooltip y Grid"
+type ECOption = ComposeOption<
+  | LineSeriesOption
+  | TitleComponentOption
+  | TooltipComponentOption
+  | GridComponentOption
+  | DatasetComponentOption
+>;
 
 const GraficoPaciente: React.FC = () => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -8,19 +48,19 @@ const GraficoPaciente: React.FC = () => {
     if (chartRef.current) {
       const myChart = echarts.init(chartRef.current);
 
-      // Definimos los tiempos
-      const TIEMPO_ANIMACION = 3000; // Tarda 3s en dibujarse
-      const TIEMPO_ESPERA = 2000; // Espera 2s con el gráfico completo
+      const TIEMPO_ANIMACION = 3000;
+      const TIEMPO_ESPERA = 2000;
       const INTERVALO_TOTAL = TIEMPO_ANIMACION + TIEMPO_ESPERA;
 
-      const option: echarts.EChartsOption = {
-        title: { text: "Monitor Cíclico" },
+      // 5. USAMOS EL TIPO AQUÍ
+      const option: ECOption = {
+        title: { text: "Monitor Cíclico (Tipado)" },
         tooltip: { trigger: "axis" },
         xAxis: { type: "value" },
         yAxis: { type: "value" },
-        // Aseguramos que la animación dure menos que el intervalo del loop
         animationDuration: TIEMPO_ANIMACION,
-        animationEasing: "cubicOut",
+        // Al usar ECOption, TS ya sabe que "cubicOut" es válido
+        //animationEasing: "cubicOut",
         series: [
           {
             data: [
@@ -36,23 +76,17 @@ const GraficoPaciente: React.FC = () => {
             smooth: true,
             showSymbol: false,
             lineStyle: { width: 4, color: "#ef4444" },
-            areaStyle: { opacity: 0.1, color: "#ef4444" },
+            //areaStyle: { opacity: 0.1, color: "#ef4444" },
           },
         ],
       };
 
-      // Función que ejecuta el ciclo de dibujado
       const runAnimation = () => {
-        // 1. EL TRUCO: Limpiar el lienzo completamente
         myChart.clear();
-        // 2. Volver a establecer las opciones
         myChart.setOption(option);
       };
 
-      // Ejecutamos la primera vez inmediatamente
       runAnimation();
-
-      // Configurar el intervalo
       const loopInterval = setInterval(runAnimation, INTERVALO_TOTAL);
 
       return () => {
