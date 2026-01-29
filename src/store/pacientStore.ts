@@ -8,6 +8,7 @@ export interface Paciente {
   sexo: string;
   talla: number;
   raza: string;
+  peso: number;
   fechaRegistro: string;
   espirometrias: any[]; // Puedes definir una interfaz para esto luego si quieres
 }

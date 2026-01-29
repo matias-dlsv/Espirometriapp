@@ -1,27 +1,39 @@
+import { useState } from "react";
 import "./App.css";
-// 1. IMPORTAR EL TOASTER
 import { Toaster } from "react-hot-toast";
-import GraficoPaciente from "./components/GraficoPaciente";
-import PacientForm from "./components/PacientForm";
-import PacientItem from "./components/PacientItem"; // Ojo: ¿Lo usas aquí o dentro de List?
-import PacientList from "./components/PacientList";
+
+// IMPORTAR TUS NUEVAS VISTAS
+import WelcomeScreen from "./views/WelcomeScreen";
+import DashboardPersonalizado from "./views/DashboardPersonalizado";
+import CasosClinicos from "./views/CasosClinicos";
+import IngresarPaciente from "./views/IngresarPaciente";
+
+// Defines el tipo aquí o en un archivo types.ts global si prefieres
+export type AppView = "welcome" | "custom" | "clinical";
 
 function App() {
-  return (
-    <main className="container">
-      {/* 2. PONER EL COMPONENTE AQUÍ PARA QUE SE VEAN LOS MENSAJES */}
-      <Toaster position="bottom-right" />
+  const [currentView, setCurrentView] = useState<AppView>("welcome");
 
-      <h1>Espirometría</h1>
-      <div className="bg-neutral-950 h-screen w-screen text-white grid grid-cols-12">
-        <div className="col-span-3 bg-zinc-900">
-          <PacientForm />
-          <PacientList />
-        </div>
-        <div className="col-span-9 bg-neutral-950">
-          <GraficoPaciente />
-        </div>
-      </div>
+  return (
+    <main className="dark text-zinc-100 bg-neutral-950 h-screen w-screen overflow-hidden font-sans">
+      {/* Toaster Global */}
+      <Toaster
+        position="bottom-right"
+        toastOptions={{ style: { background: "#333", color: "#fff" } }}
+      />
+
+      {/* Renderizado Condicional Limpio */}
+      {currentView === "welcome" && (
+        <WelcomeScreen onNavigate={(view) => setCurrentView(view)} />
+      )}
+
+      {currentView === "custom" && (
+        <IngresarPaciente onBack={() => setCurrentView("welcome")} />
+      )}
+
+      {currentView === "clinical" && (
+        <CasosClinicos onBack={() => setCurrentView("welcome")} />
+      )}
     </main>
   );
 }

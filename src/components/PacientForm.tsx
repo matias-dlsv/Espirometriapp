@@ -7,8 +7,8 @@ import {
   exists,
   mkdir,
 } from "@tauri-apps/plugin-fs";
-// Importamos el hook Y la interfaz 'Paciente' para tipar los datos
 import { usePacientStore, Paciente } from "../store/pacientStore";
+import styles from "./PacientForm.module.css";
 
 function PacientForm() {
   const [nombre, setNombre] = useState("");
@@ -16,6 +16,7 @@ function PacientForm() {
   const [sexo, setSexo] = useState("");
   const [talla, setTalla] = useState("");
   const [raza, setRaza] = useState("");
+  const [peso, setPeso] = useState("");
 
   const addPaciente = usePacientStore((state) => state.addPaciente);
   const pacientes = usePacientStore((state) => state.pacientes);
@@ -32,50 +33,59 @@ function PacientForm() {
     "80-90",
     "90+",
   ];
-
-  // AGREGAMOS TIPO AQUÍ: React.FormEvent
+  let error: boolean = false;
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!nombre.trim() || !edad || !sexo || !talla || !raza) {
+    if (!nombre.trim() || !edad || !sexo || !talla || !raza || !peso) {
       toast.error("Por favor completa todos los campos", {
         style: { background: "#202020", color: "#fff" },
       });
+      error = true;
       return;
     }
 
     const existe = pacientes.some(
-      (p) => p.nombre.toLowerCase() === nombre.toLowerCase()
+      (p) => p.nombre.toLowerCase() === nombre.toLowerCase(),
     );
 
     if (existe) {
       toast.error("Este paciente ya existe", {
         style: { background: "#202020", color: "#fff" },
       });
-      return;
+      error = true;
+      //return;
     }
 
-    // --- CORRECCIÓN LÓGICA DE ALTURA REAL ---
     const tallaNum = Number(talla);
+    const pesoNum = Number(peso);
 
-    // Validamos que sea un número y un rango humano realista (ej: 20cm a 300cm)
     if (isNaN(tallaNum) || tallaNum < 20 || tallaNum > 300) {
       toast.error("Ingresa una altura real en cm (entre 20 y 300)", {
         style: { background: "#202020", color: "#fff" },
       });
+      error = true;
+      //return;
+    }
+    if (isNaN(pesoNum) || pesoNum < 20 || pesoNum > 300) {
+      toast.error("Ingresa un peso real en kg (entre 20 y 300)", {
+        style: { background: "#202020", color: "#fff" },
+      });
+      error = true;
+      //return;
+    }
+    if (error == true) {
       return;
     }
-    // ----------------------------------------
-
     try {
-      // AGREGAMOS TIPO AQUÍ: Forzamos que esto sea un 'Paciente'
       const nuevoPaciente: Paciente = {
         id: crypto.randomUUID(),
         nombre,
         edad,
         sexo,
-        talla: tallaNum, // Usamos la variable numérica ya convertida
+        talla: tallaNum,
         raza,
+        peso: pesoNum,
         fechaRegistro: new Date().toLocaleDateString(),
         espirometrias: [],
       };
@@ -87,11 +97,12 @@ function PacientForm() {
         await mkdir("", { baseDir: directory, recursive: true });
       }
 
-      // AGREGAMOS TIPO AQUÍ: Definimos que es un array de Pacientes
       let dataDisco: Paciente[] = [];
 
       if (await exists(fileName, { baseDir: directory })) {
-        const contenido = await readTextFile(fileName, { baseDir: directory });
+        const contenido = await readTextFile(fileName, {
+          baseDir: directory,
+        });
         dataDisco = JSON.parse(contenido);
       }
 
@@ -108,6 +119,7 @@ function PacientForm() {
       setSexo("");
       setTalla("");
       setRaza("");
+      setPeso("");
 
       toast.success("Paciente guardado", {
         duration: 2000,
@@ -121,61 +133,93 @@ function PacientForm() {
   };
 
   return (
-    <form onSubmit={onSubmit} className="p-4 bg-zinc-900 rounded-md">
+    <form onSubmit={onSubmit} className={styles.formContainer}>
+      {/* NOMBRE (Full Width) */}
       <input
         type="text"
         placeholder="Nombre del Paciente"
         value={nombre}
         onChange={(e) => setNombre(e.target.value)}
         autoFocus
-        className="w-full bg-zinc-800 text-white p-2 mb-2 rounded border-none outline-none focus:ring-1 focus:ring-blue-500"
+        className={`${styles.inputField} ${styles.textInput}`}
       />
 
-      <select
-        value={edad}
-        onChange={(e) => setEdad(e.target.value)}
-        className="w-full bg-zinc-800 text-white p-2 mb-2 rounded border-none outline-none"
-      >
-        <option value="">Rango de edad</option>
-        {rangosEdad.map((r) => (
-          <option key={r} value={r}>
-            {r}
-          </option>
-        ))}
-      </select>
+      {/* ZONA DE COLUMNAS */}
+      <div className={styles.columnsWrapper}>
+        {/* COLUMNA 1: Edad, Talla, Etnia (Raza) */}
+        <div className={styles.columnGroup}>
+          <select
+            value={edad}
+            onChange={(e) => setEdad(e.target.value)}
+            className={styles.inputField}
+          >
+            <option value="" className={styles.optionItem}>
+              Rango de edad
+            </option>
+            {rangosEdad.map((r) => (
+              <option key={r} value={r} className={styles.optionItem}>
+                {r}
+              </option>
+            ))}
+          </select>
 
-      <select
-        value={sexo}
-        onChange={(e) => setSexo(e.target.value)}
-        className="w-full bg-zinc-800 text-white p-2 mb-4 rounded border-none outline-none"
-      >
-        <option value="">Sexo</option>
-        <option value="Masculino">Masculino</option>
-        <option value="Femenino">Femenino</option>
-      </select>
+          <input
+            type="number"
+            placeholder="Talla (cm)"
+            value={talla}
+            onChange={(e) => setTalla(e.target.value)}
+            className={`${styles.inputField} ${styles.textInput}`}
+          />
 
-      <input
-        type="number"
-        placeholder="Talla (cm)"
-        value={talla}
-        onChange={(e) => setTalla(e.target.value)}
-        className="w-full bg-zinc-800 text-white p-2 mb-4 rounded border-none outline-none"
-      />
+          <select
+            value={raza}
+            onChange={(e) => setRaza(e.target.value)}
+            className={styles.inputField}
+          >
+            <option value="" className={styles.optionItem}>
+              Raza / Etnia
+            </option>
+            <option value="Caucásico" className={styles.optionItem}>
+              Caucásico
+            </option>
+            <option value="Afrodescendiente" className={styles.optionItem}>
+              Afrodescendiente
+            </option>
+            <option value="Asiatico" className={styles.optionItem}>
+              Asiatico
+            </option>
+          </select>
+        </div>
 
-      <select
-        value={raza}
-        onChange={(e) => setRaza(e.target.value)}
-        className="w-full bg-zinc-800 text-white p-2 mb-4 rounded border-none outline-none"
-      >
-        <option value="">Raza</option>
-        <option value="Caucásico">Caucásico</option>
-        <option value="Afrodescendiente">Afrodescendiente</option>
-        <option value="Asiatico">Asiatico</option>
-      </select>
+        {/* COLUMNA 2: Sexo, Peso (Pendiente) */}
+        <div className={styles.columnGroup}>
+          <select
+            value={sexo}
+            onChange={(e) => setSexo(e.target.value)}
+            className={styles.inputField}
+          >
+            <option value="" className={styles.optionItem}>
+              Sexo
+            </option>
+            <option value="Masculino" className={styles.optionItem}>
+              Masculino
+            </option>
+            <option value="Femenino" className={styles.optionItem}>
+              Femenino
+            </option>
+          </select>
 
-      <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded">
-        Guardar
-      </button>
+          <input
+            type="number"
+            placeholder="Peso (Kg)"
+            value={peso}
+            onChange={(e) => setPeso(e.target.value)}
+            className={`${styles.inputField} ${styles.textInput}`}
+          />
+        </div>
+      </div>
+
+      <button className={styles.submitButton}>Guardar</button>
     </form>
   );
 }

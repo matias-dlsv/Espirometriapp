@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Contenedor del formulario */
+.formContainer {
+  @apply p-4 bg-zinc-900 rounded-md flex flex-col;
+}
+
+/* Estilo base para todos los inputs y selects */
+.inputField {
+  @apply w-full bg-zinc-800 text-neutral-200 p-2 mb-3 rounded border-none outline-none transition-all;
+}
+
+/* Estado de foco específico para inputs de texto/número */
+.textInput {
+  @apply focus:ring-1 focus:ring-blue-500;
+}@import "tailwindcss";
+
+/* Contenedor principal */
+.formContainer {
+  @apply p-4 bg-zinc-900 rounded-md flex flex-col gap-4; /* gap-4 para separar nombre, columnas y botón */
+}
+
+/* Contenedor de las 2 columnas */
+.columnsWrapper {
+  @apply grid grid-cols-2 gap-4;
+}
+
+/* Grupos individuales (Columna 1 y Columna 2) */
+.columnGroup {
+  @apply flex flex-col gap-3;
+}
+
+/* Estilo base inputs/selects */
+.inputField {
+  /* Quitamos el mb-3 y dejamos que el gap del padre maneje el espacio */
+  @apply w-full bg-zinc-800 text-neutral-200 p-2 rounded border-none outline-none transition-all;
+}
+
+.textInput {
+  @apply focus:ring-1 focus:ring-blue-500;
+}
+
+.submitButton {
+  @apply bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium transition-colors cursor-pointer mt-2;
+}
+
+.optionItem {
+  @apply bg-zinc-800 text-neutral-200;
+}
+
+/* Botón de guardar */
+.submitButton {
+  @apply bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium transition-colors cursor-pointer mt-1;
+}
+
+/* Estilo para las opciones del select (para que se vean bien en modo oscuro) */
+.optionItem {
+  @apply bg-zinc-800 text-neutral-200;
+}

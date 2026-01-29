@@ -1,0 +1,76 @@
+/* views/DashboardPersonalizado.module.css */
+
+/* Import necesario para Tailwind v4 */
+@import "tailwindcss";
+
+/* --- LAYOUT PRINCIPAL --- */
+.dashboardContainer {
+  @apply flex flex-row h-full;
+}
+
+/* --- BARRA LATERAL (SIDEBAR) --- */
+.sidebar {
+  @apply w-80 h-full bg-neutral-900 border-r border-neutral-800 flex flex-col shadow-xl z-10;
+}
+
+.sidebarHeader {
+  @apply p-4 border-b border-neutral-800 flex justify-between items-center;
+}
+
+.appTitle {
+  @apply text-lg font-bold text-white tracking-tight;
+}
+
+.backButton {
+  @apply text-xs text-neutral-500 hover:text-white transition cursor-pointer;
+}
+
+/* Sección Formulario */
+.formSection {
+  @apply p-4 border-b border-neutral-800 bg-neutral-900;
+}
+
+.sectionLabel {
+  @apply text-xs font-medium text-neutral-500 uppercase mb-3 tracking-wider;
+}
+
+/* Sección Lista (con scroll personalizado integrado) */
+.listSection {
+  @apply flex-1 overflow-y-auto p-2 space-y-2;
+  
+  /* Scrollbar fina y oscura (específica para esta lista) */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    @apply bg-neutral-800 rounded-full;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-700;
+  }
+}
+
+/* --- CONTENIDO PRINCIPAL (MAIN) --- */
+.mainContent {
+  @apply flex-1 h-full bg-neutral-950 flex flex-col;
+}
+
+.mainHeader {
+  @apply h-14 border-b border-neutral-800 flex items-center px-6 justify-between;
+}
+
+.headerTitle {
+  @apply text-sm font-medium text-neutral-300;
+}
+
+/* --- ÁREA DEL GRÁFICO --- */
+.graphWrapper {
+  @apply flex-1 p-6 overflow-y-auto flex items-center justify-center;
+}
+
+.graphContainer {
+  @apply w-full h-full max-h-[80vh] bg-neutral-900/30 border border-neutral-800 rounded-xl p-4 relative shadow-sm;
+}
