@@ -1,5 +1,7 @@
+import { AppView } from "../App";
 interface Props {
   onBack: () => void;
+  onNavigate: (view: AppView) => void; // Ahora es más estricto y seguro
 }
 
 export default function CasosClinicos({ onBack }: Props) {

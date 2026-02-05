@@ -4,12 +4,18 @@ import { Toaster } from "react-hot-toast";
 
 // IMPORTAR TUS NUEVAS VISTAS
 import WelcomeScreen from "./views/WelcomeScreen";
-import DashboardPersonalizado from "./views/DashboardPersonalizado";
 import CasosClinicos from "./views/CasosClinicos";
 import IngresarPaciente from "./views/IngresarPaciente";
+import Maniobra from "./views/Maniobra";
+import Corregir from "./views/Corregir";
 
 // Defines el tipo aquí o en un archivo types.ts global si prefieres
-export type AppView = "welcome" | "custom" | "clinical";
+export type AppView =
+  | "welcome"
+  | "custom"
+  | "clinical"
+  | "maniobra"
+  | "corregir";
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("welcome");
@@ -28,11 +34,30 @@ function App() {
       )}
 
       {currentView === "custom" && (
-        <IngresarPaciente onBack={() => setCurrentView("welcome")} />
+        <IngresarPaciente
+          onBack={() => setCurrentView("welcome")}
+          onNavigate={(view) => setCurrentView(view)}
+        />
       )}
 
       {currentView === "clinical" && (
-        <CasosClinicos onBack={() => setCurrentView("welcome")} />
+        <CasosClinicos
+          onBack={() => setCurrentView("welcome")}
+          onNavigate={(view) => setCurrentView(view)}
+        />
+      )}
+
+      {currentView === "maniobra" && (
+        <Maniobra
+          onBack={() => setCurrentView("custom")}
+          onNavigate={(view) => setCurrentView(view)}
+        />
+      )}
+      {currentView === "corregir" && (
+        <Corregir
+          onBack={() => setCurrentView("maniobra")}
+          //onNavigate={(view) => setCurrentView(view)}
+        />
       )}
     </main>
   );

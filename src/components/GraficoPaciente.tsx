@@ -1,6 +1,9 @@
-import React, { useEffect, useRef } from "react";
-
-// 1. Imports de valores (Runtime)
+import React, {
+  useEffect,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import * as echarts from "echarts/core";
 import { LineChart } from "echarts/charts";
 import {
@@ -11,7 +14,7 @@ import {
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
-// 2. Imports de TIPOS (TypeScript)
+// Tipos de ECharts
 import type { ComposeOption } from "echarts/core";
 import type { LineSeriesOption } from "echarts/charts";
 import type {
@@ -21,7 +24,6 @@ import type {
   DatasetComponentOption,
 } from "echarts/components";
 
-// 3. Registramos los módulos
 echarts.use([
   TitleComponent,
   TooltipComponent,
@@ -31,7 +33,6 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-// 4. Definición de tipos
 type ECOption = ComposeOption<
   | LineSeriesOption
   | TitleComponentOption
@@ -40,107 +41,141 @@ type ECOption = ComposeOption<
   | DatasetComponentOption
 >;
 
-const GraficoPaciente: React.FC = () => {
-  // Referencia al div del DOM
-  const chartRef = useRef<HTMLDivElement>(null);
-  // Referencia a la instancia de ECharts para poder llamarla desde el botón
-  const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+// 1. Definimos qué Props recibe (colores, datos, títulos)
+interface GraficoProps {
+  titulo?: string;
+  colorLinea?: string;
+  ejeX?: string;
+  ejeY?: string;
+}
 
-  // Constante de tiempo
-  const TIEMPO_ANIMACION = 3000;
+// 2. Definimos qué funciones exponemos al padre (el "Mando a distancia")
+export interface GraficoRef {
+  ejecutarAnimacion: () => void;
+  resize: () => void;
+}
 
-  // Opciones del gráfico (Extraídas fuera para mantener el código limpio,
-  // aunque pueden estar dentro si dependen de props)
-  const option: ECOption = {
-    title: { text: "Monitor Cíclico (Manual)" },
-    tooltip: { trigger: "axis" },
-    xAxis: { type: "value" },
-    yAxis: { type: "value" },
-    animationDuration: TIEMPO_ANIMACION,
-    series: [
-      {
-        data: [
-          [1, 6],
-          [1.1, 20],
-          [1.15, 32],
-          [1.3, 40.3],
-          [1.6, 37.7],
-          [1.9, 35.9],
-          [2.2, 33.1],
-          [2.4, 30.3],
-          [2.6, 28.5],
-          [2.8, 25],
-          [3, 23.3],
-          [3.3, 20.1],
-          [3.4, 17.2],
-          [3.6, 14.5],
-          [3.8, 12.2],
-          [4.0, 9],
-          [4.2, 8],
-          [4.3, 5],
-        ],
-        type: "line",
-        smooth: false,
-        showSymbol: false,
-        lineStyle: { width: 4, color: "#ef4444" },
+// 3. Usamos forwardRef para permitir el control externo
+const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
+  ({ titulo, colorLinea = "#ef4444", ejeX = "", ejeY = "" }, ref) => {
+    const chartRef = useRef<HTMLDivElement>(null);
+    const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+
+    // Configuración base del gráfico
+    const getOption = (): ECOption => ({
+      title: {
+        text: titulo,
+        left: "center",
+        textStyle: { color: "#aaa", fontSize: 12 },
       },
-    ],
-  };
+      tooltip: { trigger: "axis" },
+      grid: { top: 30, bottom: 20, left: 40, right: 20, containLabel: true },
+      xAxis: { type: "value", name: ejeX, splitLine: { show: false } },
+      yAxis: {
+        type: "value",
+        name: ejeY,
+        splitLine: { lineStyle: { color: "#333" } },
+      }, // Líneas tenues
+      backgroundColor: "transparent",
+      animationDuration: 3000,
+      series: [
+        {
+          data: [
+            [0.089, 8.7],
+            [0.04, 8.26],
+            [0.017, 7.75],
+            [0.024, 6.803],
+            [0.031, 5.987],
+            [-0.01, 5.27],
+            [0.015, 3.91],
+            [0.0255, 2.687],
+            [0.0336, 1.667],
+            [0.043, 0.409],
+            [3.876, 1.065],
+            [4.055, 0.491],
+            [4.537, -0.0],
+            [4.649, -0.1],
+            [3.678, 1.844],
+            [3.495, 2.86],
+            [3.348, 3.33],
+            [3.1843584494915036, 3.94],
+            [2.9088280209247164, 4.54],
+            [2.6942738625163813, 5.49],
+            [2.385276884253392, 6.307],
+            [2.217944135772384, 7.324],
+            [2.0678861920698353, 8.171],
+            [1.9529193878545668, 8.611],
+            [1.6927684093099824, 9.286],
+            [1.6587603296834215, 9.558],
+            [1.5254356608289736, 10.30],
+            [1.3144014469679735, 10.809],
+            [1.1182051531988173, 11.451],
+            [0.9206550346037625, 12.264],
+            [0.3782586563559365, 12.389],
+            [0.5180275313816591, 12.834],
+            [0.755, 12.974],
+            [0.208, 11.739],
+            [0.182, 11.024],
+            [0.172, 10.20],
+            [0.128, 9.696],
+            [0.132, 9.22],
+          ],
+          type: "line",
+          smooth: true,
+          showSymbol: false,
+          lineStyle: { width: 3, color: colorLinea },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: colorLinea },
+              { offset: 1, color: "transparent" },
+            ]),
+            opacity: 0.2,
+          },
+        },
+      ],
+    });
 
-  useEffect(() => {
-    // 1. Inicializamos el gráfico SOLO UNA VEZ al montar
-    if (chartRef.current) {
-      chartInstanceRef.current = echarts.init(chartRef.current);
+    // Inicialización
+    useEffect(() => {
+      if (chartRef.current) {
+        chartInstanceRef.current = echarts.init(chartRef.current);
+        chartInstanceRef.current.setOption(getOption());
+      }
 
-      // Opcional: Pintar un estado inicial vacío o con ejes
-      // chartInstanceRef.current.setOption(option);
-    }
+      // Resize Observer para que el gráfico se ajuste si cambias el tamaño de ventana
+      const handleResize = () => {
+        chartInstanceRef.current?.resize();
+      };
+      window.addEventListener("resize", handleResize);
 
-    // Limpieza al desmontar
-    return () => {
-      chartInstanceRef.current?.dispose();
-    };
-  }, []);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+        chartInstanceRef.current?.dispose();
+      };
+    }, [colorLinea, titulo]); // Se reinicia si cambian props básicas
 
-  // Función controladora del botón
-  const handleRunAnimation = () => {
-    const instance = chartInstanceRef.current;
+    // 4. Exponemos funciones al padre mediante useImperativeHandle
+    useImperativeHandle(ref, () => ({
+      ejecutarAnimacion: () => {
+        const instance = chartInstanceRef.current;
+        if (instance) {
+          instance.clear(); // Limpia para reiniciar animación
+          instance.setOption(getOption());
+        }
+      },
+      resize: () => {
+        chartInstanceRef.current?.resize();
+      },
+    }));
 
-    if (instance) {
-      // .clear() borra el gráfico, forzando a ECharts a redibujar desde cero
-      // esto es lo que crea el efecto de "reinicio" de la animación.
-      instance.clear();
-      instance.setOption(option);
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Botón de control */}
-      <div>
-        <button
-          onClick={handleRunAnimation}
-          style={{
-            padding: "10px 20px",
-            fontSize: "16px",
-            backgroundColor: "#2563eb",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Ejecutar Animación
-        </button>
-      </div>
-
-      {/* Contenedor del Gráfico */}
+    return (
       <div
         ref={chartRef}
-        style={{ width: "100%", height: "400px", border: "1px solid #ccc" }}
+        // IMPORTANTE: width y height al 100% para llenar el contenedor del padre
+        style={{ width: "100%", height: "100%", minHeight: "200px" }}
       />
-    </div>
-  );
-};
+    );
+  },
+);
 
 export default GraficoPaciente;
