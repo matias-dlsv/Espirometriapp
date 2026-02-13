@@ -1,0 +1,48 @@
+name: "Construir y Publicar App"
+
+# Esto permite que lo ejecutes manualmente desde la página de GitHub
+on:
+  workflow_dispatch:
+
+jobs:
+  build-tauri:
+    permissions:
+      contents: write # Permite a GitHub subir los archivos a tu repo
+    strategy:
+      fail-fast: false
+      matrix:
+        # Aquí le decimos qué sistemas operativos usar
+        platform: [macos-latest, ubuntu-22.04, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22 # Usa la versión de Node que estés usando
+
+      - name: Instalar Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Instalar dependencias de Linux (Solo corre en Ubuntu)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Instalar dependencias del Frontend
+        run: npm install
+
+      - name: Compilar Tauri y crear el Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v0.1.0 # El nombre de esta versión
+          releaseName: "EspirometriApp v0.1.0"
+          releaseBody: "Ejecutables listos para descargar."
+          releaseDraft: false
+          prerelease: false

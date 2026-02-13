@@ -1,8 +1,7 @@
-import { useRef } from "react"; // 1. Importar useRef
+import { useRef, useState } from "react";
 import styles from "./Maniobra.module.css";
-import { AppView } from "../App";
-// Importar el componente y su tipo de Referencia
 import GraficoPaciente, { GraficoRef } from "../components/GraficoPaciente";
+import { AppView } from "../App";
 
 interface ManiobraProps {
   onBack: () => void;
@@ -10,99 +9,95 @@ interface ManiobraProps {
 }
 
 export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
-  // 2. Crear las referencias ("Los mandos a distancia")
   const grafico1Ref = useRef<GraficoRef>(null);
   const grafico2Ref = useRef<GraficoRef>(null);
 
-  // 3. Función para activar ambos gráficos
-  const iniciarPrueba = () => {
-    // Aquí podrías iniciar también el Timer
+  const [timer, setTimer] = useState("00:00 s");
+
+  const iniciar = () => {
+    setTimer("00:01 s"); // Simulación
     grafico1Ref.current?.ejecutarAnimacion();
     grafico2Ref.current?.ejecutarAnimacion();
   };
 
   return (
-    <div className={styles.dashboardContainer}>
-      <header className={styles.header}>
-        <button onClick={onBack} className={styles.backButton}>
+    <div className={styles.layout}>
+      {/* SECCIÓN IZQUIERDA: GRÁFICOS */}
+      <div className={styles.chartsColumn}>
+        {/* Botón solo visible en móvil */}
+        <button onClick={onBack} className={styles.mobileBackBtn}>
           ← Salir
         </button>
-        <h2 className={styles.pageTitle}>Prueba en curso</h2>
-      </header>
 
-      <main className={styles.mainGrid}>
-        {/* COLUMNA IZQUIERDA */}
-        <section className={styles.leftPanel}>
-          <div className={styles.graphCard}>
-            <h3>Flujo / Volumen</h3>
-            <div className={styles.graphWrapper}>
-              {/* 4. Conectar la referencia y pasar props personalizadas */}
-              <GraficoPaciente
-                ref={grafico1Ref}
-                colorLinea="#3b82f6" // Azul
-                ejeX="Volumen (L)"
-                ejeY="Flujo (L/s)"
-              />
-            </div>
-          </div>
+        <div className={styles.squareBox}>
+          <GraficoPaciente
+            ref={grafico1Ref}
+            titulo="Flujo / Volumen"
+            ejeX="Vol (L)"
+            ejeY="Flujo (L/s)"
+            colorLinea="#3b82f6"
+          />
+        </div>
 
-          <div className={styles.graphCard}>
-            <h3>Volumen / Tiempo</h3>
-            <div className={styles.graphWrapper}>
-              <GraficoPaciente
-                ref={grafico2Ref}
-                colorLinea="#10b981" // Verde
-                ejeX="Tiempo (s)"
-                ejeY="Volumen (L)"
-              />
-            </div>
-          </div>
-        </section>
+        <div className={styles.squareBox}>
+          <GraficoPaciente
+            ref={grafico2Ref}
+            titulo="Volumen / Tiempo"
+            ejeX="Tiempo (s)"
+            ejeY="Vol (L)"
+            colorLinea="#10b981"
+          />
+        </div>
+      </div>
 
-        {/* COLUMNA DERECHA */}
-        <aside className={styles.rightPanel}>
-          <div className={styles.controlCard}>
-            <h3 className={styles.cardTitle}>Instrucciones</h3>
-            {/* 5. Conectar el botón a la función */}
-            <button onClick={iniciarPrueba} className={styles.actionButton}>
-              Respire normal 3 veces
-            </button>
-            <button
-              onClick={() => onNavigate("corregir")}
-              className={styles.nextButton}
-            >
-              siguiente
-            </button>
-          </div>
+      {/* SECCIÓN DERECHA: CONTROLES (Sticky) */}
+      <aside className={styles.controlsPanel}>
+        <div className={styles.panelHeader}>
+          <h2>Control</h2>
+          <button onClick={onBack} className={styles.backButtonOutline}>
+            Salir
+          </button>
+        </div>
 
-          {/* MEDIO: Tiempo */}
-          <div className={styles.controlCard}>
-            <h3 className={styles.cardTitle}>Tiempo</h3>
-            <div className={styles.timerBox}>
-              <span className={styles.timerValue}>00:00 s</span>
-            </div>
-          </div>
+        <div className={styles.card}>
+          <button onClick={iniciar} className={styles.mainActionButton}>
+            <span>INICIAR</span>
+            <span style={{ fontSize: "0.8em", opacity: 0.8 }}>
+              3 respiraciones normales
+            </span>
+          </button>
+        </div>
 
-          {/* ABAJO: Checklist */}
-          <div className={styles.controlCard}>
-            <h3 className={styles.cardTitle}>Progreso</h3>
-            <ul className={styles.checklist}>
-              <li>
-                <input type="checkbox" id="step1" />
-                <label htmlFor="step1">Respiración normal</label>
-              </li>
-              <li>
-                <input type="checkbox" id="step2" />
-                <label htmlFor="step2">Insp. max</label>
-              </li>
-              <li>
-                <input type="checkbox" id="step3" />
-                <label htmlFor="step3">Exp. forz</label>
-              </li>
-            </ul>
-          </div>
-        </aside>
-      </main>
+        <div className={styles.card}>
+          <span className={styles.label}>Tiempo</span>
+          <div className={styles.timerDisplay}>{timer}</div>
+        </div>
+
+        <div className={styles.card}>
+          <span className={styles.label}>Checklist</span>
+          <ul className={styles.checklist}>
+            <li>
+              <input type="checkbox" id="c1" />{" "}
+              <label htmlFor="c1">Resp. Normal</label>
+            </li>
+            <li>
+              <input type="checkbox" id="c2" />{" "}
+              <label htmlFor="c2">Insp. Máxima</label>
+            </li>
+            <li>
+              <input type="checkbox" id="c3" />{" "}
+              <label htmlFor="c3">Esp. Forzada</label>
+            </li>
+          </ul>
+        </div>
+
+        <button
+          onClick={() => onNavigate("corregir")}
+          className={styles.nextButton}
+        >
+          Siguiente →
+        </button>
+      </aside>
     </div>
   );
 }

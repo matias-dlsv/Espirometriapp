@@ -1,12 +1,3 @@
-Aquí tienes una plantilla profesional y completa para tu archivo `README.md`.
-
-Como estudiante de ingeniería, sabrás que la documentación es tan importante como el código. Este archivo te salvará la vida cuando vuelvas al proyecto después de unos días o si necesitas configurarlo en otro computador.
-
-Copia el siguiente contenido y guárdalo en un archivo llamado **`README.md`** en la raíz de tu proyecto.
-
----
-
-````markdown
 # 🫁 EspirometriApp
 
 Aplicación de escritorio para la visualización, análisis e interacción con curvas de exámenes respiratorios (espirometría). Desarrollada con un enfoque en alto rendimiento y seguridad de tipos.
@@ -40,6 +31,7 @@ sudo apt install \
     librsvg2-dev \
     pkg-config
 ```
+
 ````
 
 ## 🚀 Comandos Principales
@@ -94,7 +86,7 @@ Asegúrate de estar usando **WSL 2** y de tener soporte para **WSLg** (Windows 1
 
 ````
 
-***
+---
 
 ### 💡 Un consejo extra de Ingeniería
 
@@ -106,4 +98,4 @@ target/
 src-tauri/target/
 dist/
 .DS_Store
-````
+```

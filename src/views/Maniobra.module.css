@@ -1,201 +1,186 @@
-/* --- CONTENEDOR PRINCIPAL --- */
-.dashboardContainer {
-  display: flex;
-  flex-direction: column;
-  height: 100vh; /* Ocupa toda la altura de la ventana */
+/* --- LAYOUT PRINCIPAL (APP MODE) --- */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 550px; /* Izquierda flexible, Derecha ancha fija */
+  
+  /* AQUÍ ESTÁ LA CLAVE DEL "FULL SCREEN": */
+  height: 100vh;       /* Fuerza la altura exacta de la pantalla */
+  width: 100vw;        /* Fuerza el ancho exacto */
+  overflow: hidden;    /* Prohíbe que la ventana entera haga scroll */
+  
   background-color: #1a1a1a;
   color: #fff;
-  padding: 1rem;
-  box-sizing: border-box;
-  overflow: hidden; /* Evitamos scroll en el contenedor padre */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* --- HEADER --- */
-.header {
-  flex-shrink: 0; /* Evita que el header se aplaste */
+/* --- COLUMNA IZQUIERDA (Zona de Gráficos con Scroll) --- */
+.chartsColumn {
+  /* Esta columna permite scroll independiente si los gráficos no caben */
+  height: 100%;
+  overflow-y: auto; 
+  
+  padding: 40px;
   display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 1rem;
+  flex-direction: column;
+  align-items: center; 
+  gap: 40px;
+  
+  /* Espacio extra al final para scroll cómodo */
+  padding-bottom: 120px; 
 }
 
-.backButton {
-  background: transparent;
-  border: 1px solid #444;
-  color: #ccc;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
+/* Estilo para la barra de scroll (Webkit: Chrome, Edge, Safari) */
+.chartsColumn::-webkit-scrollbar {
+  width: 8px;
+}
+.chartsColumn::-webkit-scrollbar-track {
+  background: #1a1a1a; 
+}
+.chartsColumn::-webkit-scrollbar-thumb {
+  background: #444; 
   border-radius: 4px;
 }
-
-.pageTitle {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin: 0;
+.chartsColumn::-webkit-scrollbar-thumb:hover {
+  background: #666; 
 }
 
-/* --- GRILLA PRINCIPAL (Área de Scroll) --- */
-.mainGrid {
-  display: grid;
-  grid-template-columns: 3fr 1fr; /* 3 partes izquierda, 1 parte derecha */
-  gap: 20px;
-  
-  /* AQUÍ ESTÁ LA SOLUCIÓN AL SCROLL: */
-  flex: 1;                /* Ocupa todo el espacio restante */
-  overflow-y: auto;       /* Si no cabe, permite hacer scroll AQUÍ */
-  padding-right: 5px;     /* Espacio para que la barra de scroll no tape contenido */
-}
-
-/* --- IZQUIERDA: GRÁFICOS --- */
-.leftPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  /* Si el contenido es poco, ocupará el 100%, pero podrá crecer si es necesario */
-  min-height: 100%; 
-}
-
-.graphCard {
-  background-color: #262626;
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  
-  /* IMPORTANTE: Altura mínima para que el gráfico no desaparezca al achicar ventana */
-  min-height: 300px; 
-  flex: 1;
-}
-
-.graphWrapper {
-  flex: 1;
+/* --- CAJAS DE GRÁFICOS --- */
+.squareBox {
+  width: 100%;
+  /* Mantenemos un tamaño controlado para que no sean monstruosos */
+  max-width: 450px; 
+  aspect-ratio: 1 / 1;
   background-color: #000;
-  border-radius: 4px;
-  position: relative;
-  min-height: 200px; /* Asegura que el canvas tenga espacio */
-}
-
-/* --- DERECHA: CONTROLES --- */
-.rightPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  height: max-content; /* Se ajusta a su contenido */
-}
-
-.controlCard {
-  background-color: #262626;
-  padding: 1.5rem;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   
-  /* Evita que los botones se aplasten */
-  min-height: 150px; 
+  /* Evita que el gráfico se encoja */
+  flex-shrink: 0; 
 }
 
-.cardTitle {
-  margin-top: 0;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  color: #aaa;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+/* --- COLUMNA DERECHA (Panel Fijo) --- */
+.controlsPanel {
+  background-color: #262626;
+  border-left: 1px solid #333;
+  padding: 40px;
+  
+  /* Ya no necesita ser sticky porque el contenedor padre es fijo */
+  height: 100%; 
+  overflow-y: auto; /* Scroll interno si la pantalla es muy bajita */
+  
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
 }
 
-/* --- ELEMENTOS UI --- */
-.actionButton {
+/* ... MANTENER ESTILOS DE UI IGUALES (Botones, textos, etc) ... */
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.panelHeader h2 { font-size: 1.5rem; margin: 0; color: #fff; font-weight: 700; }
+
+.card {
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+.mainActionButton {
+  width: 100%;
   background-color: #3b82f6;
   color: white;
   border: none;
-  padding: 1rem;
-  border-radius: 6px;
-  font-weight: bold;
+  padding: 20px; 
+  border-radius: 10px;
   cursor: pointer;
-  width: 100%;
-  transition: background 0.2s;
-  font-size: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.1s;
 }
+.mainActionButton span:first-child { font-size: 1.4rem; font-weight: 800; letter-spacing: 1px; }
+.mainActionButton:active { transform: scale(0.98); }
 
-.actionButton:hover {
-  background-color: #2563eb;
-}
-
-.timerBox {
-  border: 2px solid #444;
-  border-radius: 8px;
-  padding: 1rem;
-  background-color: #111;
-  width: 100%;
-  text-align: center;
-  box-sizing: border-box;
-}
-
-.timerValue {
-  font-size: 2rem;
+.timerDisplay {
+  background: #000;
+  color: #10b981;
   font-family: monospace;
-  color: #4ade80;
-  display: block;
-}
-
-.checklist {
-  list-style: none;
-  padding: 0;
-  width: 100%;
-  text-align: left;
+  font-size: 3.5rem; 
+  font-weight: bold;
+  text-align: center;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #333;
 }
 
 .checklist li {
-  margin-bottom: 0.8rem;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 1rem;
+  display: flex; align-items: center; gap: 15px; margin-bottom: 15px;
+  font-size: 1.1rem; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 6px;
 }
+.checklist input { transform: scale(1.5); accent-color: #3b82f6; cursor: pointer; }
 
-.checklist input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+.nextButton {
+  margin-top: auto;
+  background: transparent;
+  border: 2px solid #10b981;
+  color: #10b981;
+  padding: 20px;
+  font-size: 1.1rem;
+  border-radius: 10px;
+  font-weight: bold;
   cursor: pointer;
+  text-transform: uppercase;
+  width: 100%;
 }
+.nextButton:hover { background: #10b981; color: #000; }
+.backButtonOutline { background: transparent; border: 1px solid #555; color: #ccc; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+.mobileBackBtn { display: none; }
+.label { display: block; font-size: 0.9rem; color: #888; margin-bottom: 5px; text-transform: uppercase;}
 
-/* --- RESPONSIVIDAD (Media Queries) --- */
-/* Esto hace que se vea bien aunque no estés en pantalla completa */
-
-@media (max-width: 1024px) {
-  /* Maniobra.module.css */
-
-.mainGrid {
-  display: grid;
-  /* CAMBIO AQUÍ: */
-  /* Antes: 3fr 1fr */
-  /* Ahora: 2fr 1fr (El gráfico ocupa menos, el panel derecho un poco más) */
-  grid-template-columns: 1fr 1fr; 
-  
-  gap: 20px;
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 5px;
-}
-
-  .leftPanel {
-    min-height: auto; /* Ya no forzamos altura completa */
-  }
-
-  .graphCard {
-    min-height: 350px; /* Hacemos los gráficos un poco más altos en móvil/tablet */
+/* --- RESPONSIVE --- */
+@media (max-width: 1100px) {
+  /* En móvil/tablet volvemos al modo de scroll normal porque el split screen es incómodo */
+  .layout {
+    display: block; /* Quitamos grid fijo */
+    height: auto;   /* Altura automática */
+    overflow: visible; /* Scroll normal */
   }
   
-  .rightPanel {
-    /* Los controles ahora se mostrarán debajo de los gráficos */
-    flex-direction: row; /* Opcional: poner los controles uno al lado del otro si quieres */
-    flex-wrap: wrap;
+  .chartsColumn {
+    height: auto;
+    overflow-y: visible;
+    padding: 20px;
+    gap: 30px;
   }
   
-  .controlCard {
-    flex: 1;
-    min-width: 200px; /* Para que no se hagan muy finos */
+  .squareBox { max-width: 100%; } /* En móvil que aproveche todo el ancho */
+
+  .controlsPanel {
+    height: auto;
+    border-left: none;
+    border-top: 1px solid #333;
+    padding: 20px;
   }
+
+  .timerDisplay { font-size: 2.5rem; }
+  
+  .mobileBackBtn {
+    display: block;
+    margin-bottom: 15px;
+    background: #333;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+  }
+  .backButtonOutline { display: none; }
 }
