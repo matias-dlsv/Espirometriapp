@@ -7,7 +7,12 @@ import {
   exists,
   mkdir,
 } from "@tauri-apps/plugin-fs";
-import { usePacientStore, Paciente } from "../store/pacientStore";
+import { invoke } from "@tauri-apps/api/core"; // <-- 1. Importamos invoke para hablar con Rust
+import {
+  usePacientStore,
+  Paciente,
+  DatosEspirometria,
+} from "../store/pacientStore"; // <-- Asegúrate de importar DatosEspirometria
 import styles from "./PacientForm.module.css";
 
 function PacientForm() {
@@ -22,7 +27,7 @@ function PacientForm() {
   const pacientes = usePacientStore((state) => state.pacientes);
 
   const rangosEdad = [
-    "0-10",
+    "3-10",
     "10-20",
     "20-30",
     "30-40",
@@ -33,7 +38,9 @@ function PacientForm() {
     "80-90",
     "90+",
   ];
+
   let error: boolean = false;
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -54,7 +61,6 @@ function PacientForm() {
         style: { background: "#202020", color: "#fff" },
       });
       error = true;
-      //return;
     }
 
     const tallaNum = Number(talla);
@@ -65,19 +71,36 @@ function PacientForm() {
         style: { background: "#202020", color: "#fff" },
       });
       error = true;
-      //return;
     }
+
     if (isNaN(pesoNum) || pesoNum < 20 || pesoNum > 300) {
       toast.error("Ingresa un peso real en kg (entre 20 y 300)", {
         style: { background: "#202020", color: "#fff" },
       });
       error = true;
-      //return;
     }
-    if (error == true) {
+
+    if (error === true) {
       return;
     }
+
     try {
+      // 2. LLAMADA A RUST: Pedimos los datos default de la espirometría
+      // Nota cómo le pasamos 'datos' tal cual lo definimos en lib.rs
+      const espirometriaDefault: DatosEspirometria = await invoke(
+        "procesar_nuevo_paciente",
+        {
+          datos: {
+            nombre: nombre,
+            talla: tallaNum,
+            peso: pesoNum,
+            sexo: sexo,
+            raza: raza,
+          },
+        },
+      );
+
+      // 3. Armamos el paciente y le inyectamos la respuesta de Rust
       const nuevoPaciente: Paciente = {
         id: crypto.randomUUID(),
         nombre,
@@ -87,7 +110,7 @@ function PacientForm() {
         raza,
         peso: pesoNum,
         fechaRegistro: new Date().toLocaleDateString(),
-        espirometrias: [],
+        espirometrias: [espirometriaDefault], // <-- Aquí entra la magia de Rust
       };
 
       const fileName = "pacientes_db.json";
@@ -121,14 +144,14 @@ function PacientForm() {
       setRaza("");
       setPeso("");
 
-      toast.success("Paciente guardado", {
+      toast.success("Paciente guardado con datos base", {
         duration: 2000,
         position: "bottom-right",
         style: { background: "#202020", color: "#fff" },
       });
-    } catch (error) {
-      console.error(error);
-      toast.error("Error al guardar archivo");
+    } catch (err) {
+      console.error("Error detallado:", err);
+      toast.error("Error al procesar o guardar archivo");
     }
   };
 
