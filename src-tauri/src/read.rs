@@ -22,10 +22,16 @@ pub fn leer_tabla_espirometria(
     altura: f32,
     sexo: &str,
     raza: &str,
+    app_handle: &tauri::AppHandle,
 ) -> IndicesEspirometria {
-    let mut excel: Xls<_> =
-        open_workbook("/home/matia/projects/espirometriapp/src-tauri/lookuptables.xls")
-            .expect("No se pudo abrir el archivo Excel");
+    // 2. Resolvemos la ruta del archivo empaquetado dinámicamente
+    let excel_path = app_handle
+        .path_resolver()
+        .resolve_resource("lookuptables.xls") // Nombre de tu archivo empaquetado
+        .expect("No se pudo encontrar el archivo lookuptables.xls en los recursos");
+
+    // 3. Abrimos el workbook usando la ruta dinámica
+    let mut excel: Xls<_> = open_workbook(excel_path).expect("No se pudo abrir el archivo Excel");
 
     let gender = if sexo == "Masculino" {
         "male"

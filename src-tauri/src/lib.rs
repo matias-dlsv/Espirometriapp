@@ -15,7 +15,6 @@ pub struct PacienteInput {
 }
 
 // 2. Estructura para los parámetros de la espirometría
-// Cambiamos f64 por read::ValoresMLS para reflejar los 3 índices (M, L, S)
 #[derive(Serialize)]
 pub struct ParametrosEspirometria {
     pub fvc: read::ValoresMLS,
@@ -33,7 +32,10 @@ pub struct DatosEspirometria {
 
 // 4. Nuestro comando principal
 #[tauri::command]
-fn procesar_nuevo_paciente(datos: PacienteInput) -> DatosEspirometria {
+fn procesar_nuevo_paciente(
+    datos: PacienteInput,
+    app_handle: tauri::AppHandle, // <-- NUEVO 1: Le pedimos a Tauri el AppHandle
+) -> DatosEspirometria {
     println!(
         "Procesando: {}, Edad: {}, Talla: {}, Peso: {}, Sexo: {}, Raza: {}",
         datos.nombre, datos.edad, datos.talla, datos.peso, datos.sexo, datos.raza
@@ -43,11 +45,15 @@ fn procesar_nuevo_paciente(datos: PacienteInput) -> DatosEspirometria {
     // ¡AQUÍ CONECTAMOS CON TU ARCHIVO read.rs!
     // ==========================================
     // Guardamos el resultado en la variable `indices_calculados`
-    let indices_calculados =
-        read::leer_tabla_espirometria(datos.edad, datos.talla as f32, &datos.sexo, &datos.raza);
+    let indices_calculados = read::leer_tabla_espirometria(
+        datos.edad,
+        datos.talla as f32,
+        &datos.sexo,
+        &datos.raza,
+        &app_handle, // <-- NUEVO 2: Se lo pasamos a tu función de lectura
+    );
 
     // A. Establecemos los parámetros con los datos REALES extraídos del Excel
-    // Como los tipos coinciden perfectamente, los asignamos directamente
     let valores_base = ParametrosEspirometria {
         fvc: indices_calculados.fvc,
         fev1: indices_calculados.fev1,
@@ -55,7 +61,6 @@ fn procesar_nuevo_paciente(datos: PacienteInput) -> DatosEspirometria {
     };
 
     // B. Generamos la curva basándonos en esos parámetros reales
-    // ATENCIÓN: Como ahora son objetos, usamos `.m` (el valor predicho) para hacer la matemática de la curva mock
     let curva_mock = vec![
         0.0,
         valores_base.fev1.m * 1.5,
@@ -68,11 +73,11 @@ fn procesar_nuevo_paciente(datos: PacienteInput) -> DatosEspirometria {
     DatosEspirometria {
         parametros: valores_base,
         curva_generada: curva_mock,
-        fecha: "2026-03-10".to_string(), // Actualicé a la fecha de hoy
+        fecha: "2026-03-21".to_string(), // Actualicé a la fecha de hoy por si acaso :)
     }
 }
 
-// 5. El arranque de la aplicación
+// 5. El arranque de la aplicación (Queda igual)
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
