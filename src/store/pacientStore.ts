@@ -1,20 +1,47 @@
 import { create } from 'zustand';
-// A. Definimos la estructura de los datos que Rust va a generar
-export interface DatosEspirometria {
-  datosBase: number[]; // El primer set de datos default (ej. la curva)
-  resultadosEsperados: { // El segundo set de datos generado a partir del primero
-    fvc: number;
-    fev1: number;
-    cvf: number;
-    diagnostico: string;
+
+// 1. NUEVA INTERFAZ: Espejo exacto de ValoresMLS en Rust
+export interface ValoresMLS {
+  m: number;
+  l: number;
+  s: number;
+}
+
+// 2. ACTUALIZADO: Espejo exacto de IndicesEspirometria en Rust
+export interface ParametrosEspirometria {
+  fvc: ValoresMLS;     
+  fev1: ValoresMLS;    
+  fev1fvc: ValoresMLS; 
+}
+
+// --- NUEVO: Interfaz para guardar las maniobras en el frontend ---
+export interface ManiobraGuardada {
+  datosFlujoVolumen: number[][];
+  datosVolumenTiempo: number[][];
+  criterios: {
+    vtestables: boolean;
+    esfuerzomaximo: boolean;
+    volumenextrapolado: boolean;
+    pefcontinuo: boolean;
   };
   fecha: string;
 }
-// 1. Definimos qué forma tiene un Paciente
+// -----------------------------------------------------------------
+
+// 3. Espejo exacto de DatosEspirometria en Rust
+export interface DatosEspirometria {
+  parametros: ParametrosEspirometria;
+  curva_generada: number[]; 
+  fecha: string;
+  // NUEVO: Arreglo opcional para ir guardando las pruebas exitosas
+  maniobras?: ManiobraGuardada[]; 
+}
+
+// 4. Estructura del Paciente (Sin cambios)
 export interface Paciente {
   id: string;
   nombre: string;
-  edad: string; // Es string porque usas rangos "20-30"
+  edad: number;
   sexo: string;
   talla: number;
   raza: string;
@@ -23,14 +50,16 @@ export interface Paciente {
   espirometrias: DatosEspirometria[]; 
 }
 
-// 2. Definimos qué tiene tu Store (Estado + Funciones)
+// Interfaz del estado de Zustand
 interface PacientState {
   pacientes: Paciente[];
   addPaciente: (paciente: Paciente) => void;
   setPacientes: (pacientes: Paciente[]) => void;
+  // NUEVO: Acción para guardar la maniobra
+  guardarManiobra: (pacienteId: string, maniobra: ManiobraGuardada) => void; 
 }
 
-// 3. Creamos el store pasando el tipo <PacientState>
+// Store de Zustand
 export const usePacientStore = create<PacientState>((set) => ({
   pacientes: [],
 
@@ -42,5 +71,31 @@ export const usePacientStore = create<PacientState>((set) => ({
   setPacientes: (nuevosPacientes) =>
     set(() => ({
       pacientes: nuevosPacientes
+    })),
+
+  // NUEVO: Implementación de la acción
+  guardarManiobra: (pacienteId, maniobra) =>
+    set((state) => ({
+      pacientes: state.pacientes.map((paciente) => {
+        if (paciente.id === pacienteId) {
+          // Copiamos las espirometrías del paciente
+          const espirometriasActualizadas = [...paciente.espirometrias];
+          
+          if (espirometriasActualizadas.length > 0) {
+            // Trabajamos sobre la última espirometría activa
+            const ultimaEspiroIndex = espirometriasActualizadas.length - 1;
+            const ultimaEspiro = { ...espirometriasActualizadas[ultimaEspiroIndex] };
+            
+            // Agregamos la nueva maniobra al arreglo
+            ultimaEspiro.maniobras = [...(ultimaEspiro.maniobras || []), maniobra];
+            
+            // Actualizamos la espirometría en el arreglo
+            espirometriasActualizadas[ultimaEspiroIndex] = ultimaEspiro;
+          }
+
+          return { ...paciente, espirometrias: espirometriasActualizadas };
+        }
+        return paciente; // Si no es el paciente, lo dejamos igual
+      }),
     })),
 }));

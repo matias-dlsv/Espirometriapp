@@ -13,9 +13,7 @@ export default function IngresarPaciente({
 }: DashboardProps) {
   return (
     <div className={styles.dashboardContainer}>
-      {/* SIDEBAR */}
       <aside className={styles.mainContent}>
-        {/* Cabecera Sidebar */}
         <div className={styles.mainHeader}>
           <h1 className={styles.appTitle}>Gestión Pacientes</h1>
           <button onClick={onBack} className={styles.backButton}>
@@ -23,17 +21,10 @@ export default function IngresarPaciente({
           </button>
         </div>
 
-        {/* Formulario */}
         <div className={styles.formSection}>
           <p className={styles.sectionLabel}>Nuevo Ingreso</p>
-          <PacientForm />
+          <PacientForm onNavigate={onNavigate} />
         </div>
-        <button
-          onClick={() => onNavigate("maniobra")}
-          className={styles.nextButton}
-        >
-          Ingresar Paciente
-        </button>
       </aside>
     </div>
   );

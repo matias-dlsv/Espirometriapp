@@ -2,12 +2,9 @@
 .layout {
   display: grid;
   grid-template-columns: 1fr 550px; /* Izquierda flexible, Derecha ancha fija */
-  
-  /* AQUÍ ESTÁ LA CLAVE DEL "FULL SCREEN": */
-  height: 100vh;       /* Fuerza la altura exacta de la pantalla */
-  width: 100vw;        /* Fuerza el ancho exacto */
-  overflow: hidden;    /* Prohíbe que la ventana entera haga scroll */
-  
+  height: 100vh;      /* Fuerza la altura exacta de la pantalla */
+  width: 100vw;       /* Fuerza el ancho exacto */
+  overflow: hidden;   /* Prohíbe que la ventana entera haga scroll */
   background-color: #1a1a1a;
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -15,21 +12,17 @@
 
 /* --- COLUMNA IZQUIERDA (Zona de Gráficos con Scroll) --- */
 .chartsColumn {
-  /* Esta columna permite scroll independiente si los gráficos no caben */
   height: 100%;
   overflow-y: auto; 
-  
   padding: 40px;
   display: flex;
   flex-direction: column;
   align-items: center; 
   gap: 40px;
-  
-  /* Espacio extra al final para scroll cómodo */
-  padding-bottom: 120px; 
+  padding-bottom: 120px;
+  /*background-color: #000; */
 }
 
-/* Estilo para la barra de scroll (Webkit: Chrome, Edge, Safari) */
 .chartsColumn::-webkit-scrollbar {
   width: 8px;
 }
@@ -47,7 +40,6 @@
 /* --- CAJAS DE GRÁFICOS --- */
 .squareBox {
   width: 100%;
-  /* Mantenemos un tamaño controlado para que no sean monstruosos */
   max-width: 450px; 
   aspect-ratio: 1 / 1;
   background-color: #000;
@@ -55,8 +47,6 @@
   border-radius: 12px;
   padding: 10px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  
-  /* Evita que el gráfico se encoja */
   flex-shrink: 0; 
 }
 
@@ -65,18 +55,14 @@
   background-color: #262626;
   border-left: 1px solid #333;
   padding: 40px;
-  
-  /* Ya no necesita ser sticky porque el contenedor padre es fijo */
   height: 100%; 
-  overflow-y: auto; /* Scroll interno si la pantalla es muy bajita */
-  
+  overflow-y: auto; 
   display: flex;
   flex-direction: column;
   gap: 25px;
 }
 
-/* ... MANTENER ESTILOS DE UI IGUALES (Botones, textos, etc) ... */
-
+/* --- UI ELEMENTS --- */
 .panelHeader {
   display: flex;
   justify-content: space-between;
@@ -93,6 +79,18 @@
   box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
+.instructionsText {
+  color: #ccc;
+  font-size: 1.1rem;
+  margin-top: 0;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.instructionsText strong {
+  color: #3b82f6; 
+}
+
 .mainActionButton {
   width: 100%;
   background-color: #3b82f6;
@@ -105,10 +103,17 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  transition: transform 0.1s;
+  transition: transform 0.1s, opacity 0.3s;
 }
-.mainActionButton span:first-child { font-size: 1.4rem; font-weight: 800; letter-spacing: 1px; }
+
+.mainActionButton span { 
+  font-size: 1.4rem; 
+  font-weight: 800; 
+  letter-spacing: 1px; 
+}
+
 .mainActionButton:active { transform: scale(0.98); }
+.mainActionButton:disabled { transform: none; } /* Evita el efecto de click si está desactivado */
 
 .timerDisplay {
   background: #000;
@@ -122,11 +127,50 @@
   border: 1px solid #333;
 }
 
-.checklist li {
-  display: flex; align-items: center; gap: 15px; margin-bottom: 15px;
-  font-size: 1.1rem; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 6px;
+/* --- CHECKLIST ANIMADO (SOLO LECTURA) --- */
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
-.checklist input { transform: scale(1.5); accent-color: #3b82f6; cursor: pointer; }
+
+.checklist li {
+  display: flex; 
+  align-items: center; 
+  gap: 15px; 
+  margin-bottom: 15px;
+  font-size: 1.1rem; 
+  padding: 10px; 
+  background: rgba(255,255,255,0.03); 
+  border-radius: 6px;
+  color: #666; /* Texto apagado por defecto */
+  transition: all 0.3s ease;
+}
+
+.checklist li.stepActive {
+  color: #fff; /* Se ilumina cuando se activa el paso */
+  background: rgba(255,255,255,0.08);
+}
+
+.checkCircle {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #555;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: transparent;
+  transition: all 0.3s ease;
+}
+
+.checkCircleActive {
+  border-color: #10b981;
+  background-color: #10b981;
+  color: #000;
+}
 
 .nextButton {
   margin-top: auto;
@@ -142,17 +186,17 @@
   width: 100%;
 }
 .nextButton:hover { background: #10b981; color: #000; }
+
 .backButtonOutline { background: transparent; border: 1px solid #555; color: #ccc; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
 .mobileBackBtn { display: none; }
 .label { display: block; font-size: 0.9rem; color: #888; margin-bottom: 5px; text-transform: uppercase;}
 
 /* --- RESPONSIVE --- */
 @media (max-width: 1100px) {
-  /* En móvil/tablet volvemos al modo de scroll normal porque el split screen es incómodo */
   .layout {
-    display: block; /* Quitamos grid fijo */
-    height: auto;   /* Altura automática */
-    overflow: visible; /* Scroll normal */
+    display: block; 
+    height: auto;   
+    overflow: visible; 
   }
   
   .chartsColumn {
@@ -162,7 +206,7 @@
     gap: 30px;
   }
   
-  .squareBox { max-width: 100%; } /* En móvil que aproveche todo el ancho */
+  .squareBox { max-width: 100%; }
 
   .controlsPanel {
     height: auto;

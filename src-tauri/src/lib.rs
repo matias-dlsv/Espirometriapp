@@ -1,33 +1,34 @@
 // IMPORTANTE: Le decimos a Rust que busque e incluya el archivo "read.rs"
-mod read;
+pub mod read;
 
 use serde::{Deserialize, Serialize};
 
 // 1. Estructura para recibir los datos básicos desde el formulario de React
 #[derive(Deserialize)]
 pub struct PacienteInput {
-    nombre: String,
-    edad: u32, // <-- AÑADIDO: Necesitamos la edad para buscar en el Excel
-    talla: f64,
-    peso: f64,
-    sexo: String,
-    raza: String,
+    pub nombre: String,
+    pub edad: u32,
+    pub talla: f64,
+    pub peso: f64,
+    pub sexo: String,
+    pub raza: String,
 }
 
-// 2. Estructura para los valores predeterminados de la espirometría
+// 2. Estructura para los parámetros de la espirometría
+// Cambiamos f64 por read::ValoresMLS para reflejar los 3 índices (M, L, S)
 #[derive(Serialize)]
 pub struct ParametrosEspirometria {
-    fvc: f64,
-    fev1: f64,
-    cvf: f64,
+    pub fvc: read::ValoresMLS,
+    pub fev1: read::ValoresMLS,
+    pub fev1fvc: read::ValoresMLS,
 }
 
 // 3. Estructura final que agrupa todo para enviarlo a TypeScript
 #[derive(Serialize)]
 pub struct DatosEspirometria {
-    parametros: ParametrosEspirometria,
-    curva_generada: Vec<f64>,
-    fecha: String,
+    pub parametros: ParametrosEspirometria,
+    pub curva_generada: Vec<f64>,
+    pub fecha: String,
 }
 
 // 4. Nuestro comando principal
@@ -41,26 +42,25 @@ fn procesar_nuevo_paciente(datos: PacienteInput) -> DatosEspirometria {
     // ==========================================
     // ¡AQUÍ CONECTAMOS CON TU ARCHIVO read.rs!
     // ==========================================
-    // Llamamos a la función usando `read::` antes del nombre.
-    // - Pasamos `datos.edad` directamente (es u32)
-    // - Convertimos `datos.talla` de f64 a f32 usando `as f32`
-    // - Pasamos una referencia del String sexo usando `&` para que sea un &str
-    read::leer_tabla_espirometria(datos.edad, datos.talla as f32, &datos.sexo);
+    // Guardamos el resultado en la variable `indices_calculados`
+    let indices_calculados =
+        read::leer_tabla_espirometria(datos.edad, datos.talla as f32, &datos.sexo, &datos.raza);
 
-    // A. Establecemos los parámetros por default (Por ahora fijos)
-    // Más adelante, en lugar de poner 4.5 fijo, pondrás lo que te devuelva `leer_tabla_espirometria`
+    // A. Establecemos los parámetros con los datos REALES extraídos del Excel
+    // Como los tipos coinciden perfectamente, los asignamos directamente
     let valores_base = ParametrosEspirometria {
-        fvc: 4.5,
-        fev1: 3.6,
-        cvf: 4.5,
+        fvc: indices_calculados.fvc,
+        fev1: indices_calculados.fev1,
+        fev1fvc: indices_calculados.fev1fvc,
     };
 
-    // B. Generamos la curva basándonos en esos parámetros
+    // B. Generamos la curva basándonos en esos parámetros reales
+    // ATENCIÓN: Como ahora son objetos, usamos `.m` (el valor predicho) para hacer la matemática de la curva mock
     let curva_mock = vec![
         0.0,
-        valores_base.fev1 * 1.5,
-        valores_base.fev1 * 0.8,
-        valores_base.fvc * 0.5,
+        valores_base.fev1.m * 1.5,
+        valores_base.fev1.m * 0.8,
+        valores_base.fvc.m * 0.5,
         0.0,
     ];
 
@@ -68,7 +68,7 @@ fn procesar_nuevo_paciente(datos: PacienteInput) -> DatosEspirometria {
     DatosEspirometria {
         parametros: valores_base,
         curva_generada: curva_mock,
-        fecha: "2026-02-24".to_string(),
+        fecha: "2026-03-10".to_string(), // Actualicé a la fecha de hoy
     }
 }
 

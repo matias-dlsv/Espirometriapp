@@ -9,7 +9,6 @@ import {
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
-// Tipos de ECharts
 import type { ComposeOption } from "echarts/core";
 import type { LineSeriesOption } from "echarts/charts";
 import type {
@@ -41,6 +40,12 @@ interface GraficoProps {
   colorLinea?: string;
   ejeX?: string;
   ejeY?: string;
+  data?: number[][];
+  // AGREGAMOS LOS LÍMITES FIJOS AQUÍ
+  minX?: number;
+  maxX?: number;
+  minY?: number;
+  maxY?: number;
 }
 
 export interface GraficoRef {
@@ -49,92 +54,87 @@ export interface GraficoRef {
 }
 
 const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
-  ({ titulo, colorLinea = "#ef4444", ejeX = "", ejeY = "" }, ref) => {
+  (
+    {
+      titulo,
+      colorLinea = "#ef4444",
+      ejeX = "",
+      ejeY = "",
+      data = [],
+      minX = 0, // Valores por defecto si no le pasas nada
+      maxX = 10,
+      minY = 0,
+      maxY = 10,
+    },
+    ref,
+  ) => {
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+    const animationRef = useRef<number | null>(null);
 
-    const getOption = (): ECOption => {
-      // 1. SOLUCIÓN TYPESCRIPT: Definimos el grid como 'any' o forzamos la propiedad
-      // Esto le dice a ECharts: "Dibuja el área del gráfico como un cuadrado perfecto"
-      // Independientemente de si el div contenedor es rectangular.
-      const gridConfig: any = {
-        top: 40,
-        bottom: 20,
-        left: 40,
-        right: 20,
-        containLabel: true,
-      };
-
+    const getOption = (currentData: number[][] = []): ECOption => {
       return {
         title: {
           text: titulo,
           left: "center",
-          textStyle: { color: "#aaa", fontSize: 12 },
+          // 1. Título más oscuro para que resalte en el fondo blanco
+          textStyle: { color: "#333", fontSize: 14, fontWeight: "bold" },
         },
         tooltip: { trigger: "axis" },
-
-        // Asignamos la configuración con el "truco" de tipos
-        grid: gridConfig,
-
+        grid: {
+          top: 35,
+          bottom: 15,
+          left: 25,
+          right: 25,
+          containLabel: true,
+        },
         xAxis: {
           type: "value",
-          min: 0,
           name: ejeX,
-          splitLine: { show: false },
+          nameLocation: "end",
+          min: minX,
+          max: maxX,
+          axisLine: {
+            show: true,
+            onZero: true,
+            // 2. Líneas de los ejes principales en un gris oscuro
+            lineStyle: { color: "rgb(85, 85, 85)", width: 2 },
+          },
+          splitLine: {
+            show: true,
+            // 3. Grilla punteada en negro semi-transparente (antes era blanco)
+            lineStyle: { color: "rgba(0, 0, 0, 0.1)", type: "dashed" },
+          },
+          axisLabel: { color: "#555" }, // Números en gris oscuro
         },
         yAxis: {
           type: "value",
-          min: 0,
           name: ejeY,
-          splitLine: { lineStyle: { color: "#333" } },
+          nameLocation: "end",
+          min: minY,
+          max: maxY,
+          axisLine: {
+            show: true,
+            onZero: true,
+            lineStyle: { color: "rgb(85, 85, 85)", width: 2 },
+          },
+          splitLine: {
+            show: true,
+            // Grilla punteada en negro semi-transparente
+            lineStyle: { color: "rgba(0, 0, 0, 0.1)", type: "dashed" },
+          },
+          axisLabel: { color: "#555" }, // Números en gris oscuro
         },
-        backgroundColor: "transparent",
-        animationDuration: 3000,
+
+        // 4. ¡EL FONDO BLANCO!
+        backgroundColor: "#ffffff",
+
+        animation: false,
         series: [
           {
-            // ... (tus datos se mantienen igual)
-            data: [
-              [0.089, 8.7],
-              [0.04, 8.26],
-              [0.017, 7.75],
-              [0.024, 6.803],
-              [0.031, 5.987],
-              [-0.01, 5.27],
-              [0.015, 3.91],
-              [0.0255, 2.687],
-              [0.0336, 1.667],
-              [0.043, 0.409],
-              [3.876, 1.065],
-              [4.055, 0.491],
-              [4.537, -0.0],
-              [4.649, -0.1],
-              [3.678, 1.844],
-              [3.495, 2.86],
-              [3.348, 3.33],
-              [3.184, 3.94],
-              [2.908, 4.54],
-              [2.694, 5.49],
-              [2.385, 6.307],
-              [2.217, 7.324],
-              [2.067, 8.171],
-              [1.952, 8.611],
-              [1.692, 9.286],
-              [1.658, 9.558],
-              [1.525, 10.3],
-              [1.314, 10.809],
-              [1.118, 11.451],
-              [0.92, 12.264],
-              [0.378, 12.389],
-              [0.518, 12.834],
-              [0.755, 12.974],
-              [0.208, 11.739],
-              [0.182, 11.024],
-              [0.172, 10.2],
-              [0.128, 9.696],
-              [0.132, 9.22],
-            ],
+            data: currentData,
             type: "line",
-            smooth: true,
+            smooth: false,
             showSymbol: false,
             lineStyle: { width: 3, color: colorLinea },
           },
@@ -143,10 +143,10 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     };
 
     useEffect(() => {
-      if (chartRef.current) {
+      if (!chartInstanceRef.current && chartRef.current) {
         chartInstanceRef.current = echarts.init(chartRef.current);
-        chartInstanceRef.current.setOption(getOption());
       }
+      chartInstanceRef.current?.setOption(getOption([]), true);
 
       const handleResize = () => {
         chartInstanceRef.current?.resize();
@@ -155,25 +155,62 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
 
       return () => {
         window.removeEventListener("resize", handleResize);
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
         chartInstanceRef.current?.dispose();
+        chartInstanceRef.current = null;
       };
-    }, [colorLinea, titulo]);
+      // Agregamos los límites a las dependencias
+    }, [titulo, colorLinea, ejeX, ejeY, minX, maxX, minY, maxY]);
 
-    useImperativeHandle(ref, () => ({
-      ejecutarAnimacion: () => {
-        const instance = chartInstanceRef.current;
-        if (instance) {
-          instance.clear();
-          instance.setOption(getOption());
-        }
-      },
-      resize: () => {
-        chartInstanceRef.current?.resize();
-      },
-    }));
+    useImperativeHandle(
+      ref,
+      () => ({
+        ejecutarAnimacion: () => {
+          const instance = chartInstanceRef.current;
+          if (!instance || !data || data.length < 2) return;
+
+          if (animationRef.current) cancelAnimationFrame(animationRef.current);
+
+          const totalDuration = 10000;
+          let startTime: number | null = null;
+
+          const animate = (timestamp: number) => {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / totalDuration, 1);
+
+            const totalSegments = data.length - 1;
+            const currentSegmentFloat = progress * totalSegments;
+            const currentSegmentIndex = Math.floor(currentSegmentFloat);
+            const segmentProgress = currentSegmentFloat - currentSegmentIndex;
+
+            const currentData = data.slice(0, currentSegmentIndex + 1);
+
+            if (currentSegmentIndex < totalSegments) {
+              const p1 = data[currentSegmentIndex];
+              const p2 = data[currentSegmentIndex + 1];
+              const interpolatedX = p1[0] + (p2[0] - p1[0]) * segmentProgress;
+              const interpolatedY = p1[1] + (p2[1] - p1[1]) * segmentProgress;
+              currentData.push([interpolatedX, interpolatedY]);
+            }
+
+            instance.setOption({ series: [{ data: currentData }] });
+
+            if (progress < 1) {
+              animationRef.current = requestAnimationFrame(animate);
+            }
+          };
+
+          animationRef.current = requestAnimationFrame(animate);
+        },
+        resize: () => {
+          chartInstanceRef.current?.resize();
+        },
+      }),
+      [data],
+    );
 
     return (
-      // 2. CSS: Flexbox para centrar el gráfico si sobra espacio
       <div
         style={{
           width: "100%",

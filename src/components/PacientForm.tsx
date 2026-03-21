@@ -7,15 +7,22 @@ import {
   exists,
   mkdir,
 } from "@tauri-apps/plugin-fs";
-import { invoke } from "@tauri-apps/api/core"; // <-- 1. Importamos invoke para hablar con Rust
+import { invoke } from "@tauri-apps/api/core";
 import {
   usePacientStore,
   Paciente,
   DatosEspirometria,
-} from "../store/pacientStore"; // <-- Asegúrate de importar DatosEspirometria
+} from "../store/pacientStore";
+import { AppView } from "../App"; // <-- Importa el tipo AppView
 import styles from "./PacientForm.module.css";
 
-function PacientForm() {
+// 1. Creamos la interfaz para recibir onNavigate
+interface PacientFormProps {
+  onNavigate: (view: AppView) => void;
+}
+
+// 2. Pasamos la prop al componente
+function PacientForm({ onNavigate }: PacientFormProps) {
   const [nombre, setNombre] = useState("");
   const [edad, setEdad] = useState("");
   const [sexo, setSexo] = useState("");
@@ -26,19 +33,6 @@ function PacientForm() {
   const addPaciente = usePacientStore((state) => state.addPaciente);
   const pacientes = usePacientStore((state) => state.pacientes);
 
-  const rangosEdad = [
-    "3-10",
-    "10-20",
-    "20-30",
-    "30-40",
-    "40-50",
-    "50-60",
-    "60-70",
-    "70-80",
-    "80-90",
-    "90+",
-  ];
-
   let error: boolean = false;
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -48,7 +42,6 @@ function PacientForm() {
       toast.error("Por favor completa todos los campos", {
         style: { background: "#202020", color: "#fff" },
       });
-      error = true;
       return;
     }
 
@@ -63,8 +56,16 @@ function PacientForm() {
       error = true;
     }
 
+    const edadNum = Number(edad);
     const tallaNum = Number(talla);
     const pesoNum = Number(peso);
+
+    if (isNaN(edadNum) || edadNum < 3 || edadNum > 100) {
+      toast.error("Ingresa una edad real (entre 3 y 100 años)", {
+        style: { background: "#202020", color: "#fff" },
+      });
+      error = true;
+    }
 
     if (isNaN(tallaNum) || tallaNum < 20 || tallaNum > 300) {
       toast.error("Ingresa una altura real en cm (entre 20 y 300)", {
@@ -85,32 +86,31 @@ function PacientForm() {
     }
 
     try {
-      // 2. LLAMADA A RUST: Pedimos los datos default de la espirometría
-      // Nota cómo le pasamos 'datos' tal cual lo definimos en lib.rs
+      // Se calculan los datos en Rust automáticamente
       const espirometriaDefault: DatosEspirometria = await invoke(
         "procesar_nuevo_paciente",
         {
           datos: {
-            nombre: nombre,
+            nombre,
+            edad: edadNum,
             talla: tallaNum,
             peso: pesoNum,
-            sexo: sexo,
-            raza: raza,
+            sexo,
+            raza,
           },
         },
       );
 
-      // 3. Armamos el paciente y le inyectamos la respuesta de Rust
       const nuevoPaciente: Paciente = {
         id: crypto.randomUUID(),
         nombre,
-        edad,
+        edad: edadNum,
         sexo,
         talla: tallaNum,
         raza,
         peso: pesoNum,
         fechaRegistro: new Date().toLocaleDateString(),
-        espirometrias: [espirometriaDefault], // <-- Aquí entra la magia de Rust
+        espirometrias: [espirometriaDefault],
       };
 
       const fileName = "pacientes_db.json";
@@ -123,9 +123,7 @@ function PacientForm() {
       let dataDisco: Paciente[] = [];
 
       if (await exists(fileName, { baseDir: directory })) {
-        const contenido = await readTextFile(fileName, {
-          baseDir: directory,
-        });
+        const contenido = await readTextFile(fileName, { baseDir: directory });
         dataDisco = JSON.parse(contenido);
       }
 
@@ -144,20 +142,23 @@ function PacientForm() {
       setRaza("");
       setPeso("");
 
-      toast.success("Paciente guardado con datos base", {
+      toast.success("Paciente guardado exitosamente", {
         duration: 2000,
         position: "bottom-right",
         style: { background: "#202020", color: "#fff" },
       });
+
+      // 3. ¡Navegamos a la siguiente vista automáticamente!
+      onNavigate("maniobra");
     } catch (err) {
       console.error("Error detallado:", err);
-      toast.error("Error al procesar o guardar archivo");
+      toast.error("Error al procesar los datos con Rust");
     }
   };
 
   return (
     <form onSubmit={onSubmit} className={styles.formContainer}>
-      {/* NOMBRE (Full Width) */}
+      {/* ... (Todos tus inputs quedan exactamente igual que antes) ... */}
       <input
         type="text"
         placeholder="Nombre del Paciente"
@@ -167,25 +168,15 @@ function PacientForm() {
         className={`${styles.inputField} ${styles.textInput}`}
       />
 
-      {/* ZONA DE COLUMNAS */}
       <div className={styles.columnsWrapper}>
-        {/* COLUMNA 1: Edad, Talla, Etnia (Raza) */}
         <div className={styles.columnGroup}>
-          <select
+          <input
+            type="number"
+            placeholder="Edad (años)"
             value={edad}
             onChange={(e) => setEdad(e.target.value)}
-            className={styles.inputField}
-          >
-            <option value="" className={styles.optionItem}>
-              Rango de edad
-            </option>
-            {rangosEdad.map((r) => (
-              <option key={r} value={r} className={styles.optionItem}>
-                {r}
-              </option>
-            ))}
-          </select>
-
+            className={`${styles.inputField} ${styles.textInput}`}
+          />
           <input
             type="number"
             placeholder="Talla (cm)"
@@ -193,7 +184,6 @@ function PacientForm() {
             onChange={(e) => setTalla(e.target.value)}
             className={`${styles.inputField} ${styles.textInput}`}
           />
-
           <select
             value={raza}
             onChange={(e) => setRaza(e.target.value)}
@@ -202,19 +192,27 @@ function PacientForm() {
             <option value="" className={styles.optionItem}>
               Raza / Etnia
             </option>
-            <option value="Caucásico" className={styles.optionItem}>
+            <option value="Caucasico" className={styles.optionItem}>
               Caucásico
             </option>
             <option value="Afrodescendiente" className={styles.optionItem}>
               Afrodescendiente
             </option>
-            <option value="Asiatico" className={styles.optionItem}>
-              Asiatico
+            <option value="Asiatico NE" className={styles.optionItem}>
+              Asiático (Noreste)
+            </option>
+            <option value="Asiatico SE" className={styles.optionItem}>
+              Asiático (Sureste)
+            </option>
+            <option
+              value="Otra Raza / Etnia mixta"
+              className={styles.optionItem}
+            >
+              Otro
             </option>
           </select>
         </div>
 
-        {/* COLUMNA 2: Sexo, Peso (Pendiente) */}
         <div className={styles.columnGroup}>
           <select
             value={sexo}
@@ -231,7 +229,6 @@ function PacientForm() {
               Femenino
             </option>
           </select>
-
           <input
             type="number"
             placeholder="Peso (Kg)"
@@ -242,7 +239,10 @@ function PacientForm() {
         </div>
       </div>
 
-      <button className={styles.submitButton}>Guardar</button>
+      {/* Cambiamos el texto del botón para que tenga más sentido */}
+      <button type="submit" className={styles.submitButton}>
+        Ingresar Paciente
+      </button>
     </form>
   );
 }
