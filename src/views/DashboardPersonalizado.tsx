@@ -2,12 +2,17 @@ import styles from "./DashboardPersonalizado.module.css";
 import GraficoPaciente from "../components/GraficoPaciente";
 import PacientForm from "../components/PacientForm";
 import PacientList from "../components/PacientList";
+import { AppView } from "../App";
 
 interface DashboardProps {
   onBack: () => void;
+  onNavigate: (view: AppView) => void;
 }
 
-export default function DashboardPersonalizado({ onBack }: DashboardProps) {
+export default function DashboardPersonalizado({
+  onNavigate,
+  onBack,
+}: DashboardProps) {
   return (
     <div className={styles.dashboardContainer}>
       {/* SIDEBAR */}
@@ -23,7 +28,7 @@ export default function DashboardPersonalizado({ onBack }: DashboardProps) {
         {/* Formulario */}
         <div className={styles.formSection}>
           <p className={styles.sectionLabel}>Nuevo Ingreso</p>
-          <PacientForm />
+          <PacientForm onNavigate={onNavigate} /> {/* <-- Agrega esto */}
         </div>
 
         {/* Lista de pacientes */}
