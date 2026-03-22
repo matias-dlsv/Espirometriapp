@@ -1,59 +1,69 @@
 @import "tailwindcss";
 
-/* Contenedor del formulario */
+/*
+  Contenedor Principal del Formulario:
+  Ahora limitado en ancho máximo, centrado, con un color de fondo off-white
+  y aspecto de tarjeta profesional.
+*/
 .formContainer {
-  @apply p-4 bg-zinc-900 rounded-md flex flex-col;
+  /* Centrado y ancho limitado */
+  @apply w-full max-w-2xl mx-auto p-8 rounded-lg border flex flex-col gap-6;
+
+  /* Color: Off-white (zinc-200) para el fondo, texto oscuro (zinc-950) */
+  @apply bg-zinc-200 text-zinc-950 border-zinc-900;
+
+  /* Sombra para darle profundidad y que "flote" */
+  @apply shadow-2xl;
 }
 
-/* Estilo base para todos los inputs y selects */
-.inputField {
-  @apply w-full bg-zinc-800 text-neutral-200 p-2 mb-3 rounded border-none outline-none transition-all;
+/*
+  Título o Etiqueta de Sección opcional para usar dentro del form:
+  No la usas ahora, pero es buena práctica tener el estilo listo.
+*/
+.formTitle {
+  @apply text-2xl font-bold text-neutral-100 mb-2;
 }
 
-/* Estado de foco específico para inputs de texto/número */
-.textInput {
-  @apply focus:ring-1 focus:ring-blue-500;
-}@import "tailwindcss";
-
-/* Contenedor principal */
-.formContainer {
-  @apply p-4 bg-zinc-900 rounded-md flex flex-col gap-4; /* gap-4 para separar nombre, columnas y botón */
-}
-
-/* Contenedor de las 2 columnas */
+/*
+  Contenedor de las 2 Columnas:
+  Se mantiene la grilla, con un gap ligeramente mayor para mayor aire.
+*/
 .columnsWrapper {
-  @apply grid grid-cols-2 gap-4;
+  @apply grid grid-cols-2 gap-5;
 }
 
 /* Grupos individuales (Columna 1 y Columna 2) */
 .columnGroup {
-  @apply flex flex-col gap-3;
+  @apply flex flex-col gap-4;
 }
 
-/* Estilo base inputs/selects */
+/*
+  Estilo Base Inputs/Selects:
+  Son blancos para contrastar con el off-white de la tarjeta.
+  He aumentado el padding, añadido un borde sutil y suavizado los bordes.
+*/
 .inputField {
-  /* Quitamos el mb-3 y dejamos que el gap del padre maneje el espacio */
-  @apply w-full bg-zinc-800 text-neutral-200 p-2 rounded border-none outline-none transition-all;
+  @apply w-full bg-white text-zinc-900 p-3 rounded-md border border-zinc-300 outline-none transition-all;
 }
 
+/*
+  Estado de Foco:
+  Anillo y borde azul sutil al hacer foco.
+*/
 .textInput {
-  @apply focus:ring-1 focus:ring-blue-500;
+  @apply focus:border-blue-500 focus:ring-1 focus:ring-blue-500;
 }
 
+/*
+  Botón de Guardar:
+  He mejorado el padding horizontal, el color es un azul limpio
+  y el botón ocupa todo el ancho de su tarjeta para mayor impacto.
+*/
 .submitButton {
-  @apply bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium transition-colors cursor-pointer mt-2;
+  @apply bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-md font-medium transition-all cursor-pointer mt-3 w-full;
 }
 
-.optionItem {
-  @apply bg-zinc-800 text-neutral-200;
-}
-
-/* Botón de guardar */
-.submitButton {
-  @apply bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium transition-colors cursor-pointer mt-1;
-}
-
-/* Estilo para las opciones del select (para que se vean bien en modo oscuro) */
+/* Estilo para las opciones del select */
 .optionItem {
   @apply bg-zinc-800 text-neutral-200;
 }

@@ -15,14 +15,13 @@ export default function IngresarPaciente({
     <div className={styles.dashboardContainer}>
       <aside className={styles.mainContent}>
         <div className={styles.mainHeader}>
-          <h1 className={styles.appTitle}>Gestión Pacientes</h1>
+          <h1 className={styles.appTitle}>Ingresar Paciente</h1>
           <button onClick={onBack} className={styles.backButton}>
             ← Salir
           </button>
         </div>
 
-        <div className={styles.formSection}>
-          <p className={styles.sectionLabel}>Nuevo Ingreso</p>
+        <div className="bg-transparent flex flex-col gap-4 p-6">
           <PacientForm onNavigate={onNavigate} />
         </div>
       </aside>

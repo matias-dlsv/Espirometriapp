@@ -3,3 +3,6 @@
 .nextButton {
   @apply bg-neutral-700;
 }
+.formSection {
+  @apply p-6 flex flex-col gap-4; /* Sin colores de fondo ni bordes */
+}
