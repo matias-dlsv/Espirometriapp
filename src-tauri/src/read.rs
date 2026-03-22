@@ -1,5 +1,6 @@
 use calamine::{open_workbook, Data, Reader, Xls};
 use serde::{Deserialize, Serialize};
+use tauri::Manager; // <-- 1. NUEVO: Le decimos a Rust que traiga las herramientas de Tauri v2
 
 // Estructura para almacenar los 3 índices de cada parámetro
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -24,9 +25,9 @@ pub fn leer_tabla_espirometria(
     raza: &str,
     app_handle: &tauri::AppHandle,
 ) -> IndicesEspirometria {
-    // 2. Resolvemos la ruta del archivo empaquetado dinámicamente
+    // 2. CAMBIO AQUÍ: Usamos .path() como pide Tauri v2
     let excel_path = app_handle
-        .path_resolver()
+        .path()
         .resolve_resource("lookuptables.xls") // Nombre de tu archivo empaquetado
         .expect("No se pudo encontrar el archivo lookuptables.xls en los recursos");
 
