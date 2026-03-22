@@ -25,11 +25,12 @@ pub fn leer_tabla_espirometria(
     raza: &str,
     app_handle: &tauri::AppHandle,
 ) -> IndicesEspirometria {
-    // 2. CAMBIO AQUÍ: Usamos .path() como pide Tauri v2
+    // 2. Buscamos la carpeta secreta de recursos y le pegamos el nombre de tu archivo
     let excel_path = app_handle
         .path()
-        .resolve_resource("lookuptables.xls") // Nombre de tu archivo empaquetado
-        .expect("No se pudo encontrar el archivo lookuptables.xls en los recursos");
+        .resource_dir()
+        .expect("No se pudo encontrar la carpeta de recursos")
+        .join("lookuptables.xls");
 
     // 3. Abrimos el workbook usando la ruta dinámica
     let mut excel: Xls<_> = open_workbook(excel_path).expect("No se pudo abrir el archivo Excel");
