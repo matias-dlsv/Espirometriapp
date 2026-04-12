@@ -1,6 +1,6 @@
 // IMPORTANTE: Le decimos a Rust que busque e incluya el archivo "read.rs"
 pub mod read;
-
+use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 // 1. Estructura para recibir los datos básicos desde el formulario de React
@@ -34,24 +34,15 @@ pub struct DatosEspirometria {
 #[tauri::command]
 fn procesar_nuevo_paciente(
     datos: PacienteInput,
-    app_handle: tauri::AppHandle, // <-- NUEVO 1: Le pedimos a Tauri el AppHandle
-) -> DatosEspirometria {
-    println!(
-        "Procesando: {}, Edad: {}, Talla: {}, Peso: {}, Sexo: {}, Raza: {}",
-        datos.nombre, datos.edad, datos.talla, datos.peso, datos.sexo, datos.raza
-    );
-
-    // ==========================================
-    // ¡AQUÍ CONECTAMOS CON TU ARCHIVO read.rs!
-    // ==========================================
-    // Guardamos el resultado en la variable `indices_calculados`
+    app_handle: tauri::AppHandle,
+) -> Result<DatosEspirometria, String> {
     let indices_calculados = read::leer_tabla_espirometria(
         datos.edad,
         datos.talla as f32,
         &datos.sexo,
         &datos.raza,
-        &app_handle, // <-- NUEVO 2: Se lo pasamos a tu función de lectura
-    );
+        &app_handle,
+    )?; // El `?` propaga el error automáticamente
 
     // A. Establecemos los parámetros con los datos REALES extraídos del Excel
     let valores_base = ParametrosEspirometria {
@@ -70,11 +61,11 @@ fn procesar_nuevo_paciente(
     ];
 
     // C. Empaquetamos todo y lo retornamos
-    DatosEspirometria {
+    Ok(DatosEspirometria {
         parametros: valores_base,
         curva_generada: curva_mock,
-        fecha: "2026-03-21".to_string(), // Actualicé a la fecha de hoy por si acaso :)
-    }
+        fecha: Local::now().format("%Y-%m-%d").to_string(),
+    })
 }
 
 // 5. El arranque de la aplicación (Queda igual)

@@ -32,58 +32,44 @@ function PacientForm({ onNavigate }: PacientFormProps) {
 
   const addPaciente = usePacientStore((state) => state.addPaciente);
   const pacientes = usePacientStore((state) => state.pacientes);
+  const seleccionarPaciente = usePacientStore(
+    (state) => state.seleccionarPaciente,
+  );
 
-  let error: boolean = false;
-
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!nombre.trim() || !edad || !sexo || !talla || !raza || !peso) {
-      toast.error("Por favor completa todos los campos", {
-        style: { background: "#202020", color: "#fff" },
-      });
-      return;
-    }
-
-    const existe = pacientes.some(
-      (p) => p.nombre.toLowerCase() === nombre.toLowerCase(),
-    );
-
-    if (existe) {
-      toast.error("Este paciente ya existe", {
-        style: { background: "#202020", color: "#fff" },
-      });
-      error = true;
-    }
+  const validar = (): string | null => {
+    if (!nombre.trim() || !edad || !sexo || !talla || !raza || !peso)
+      return "Por favor completa todos los campos";
+    if (pacientes.some((p) => p.nombre.toLowerCase() === nombre.toLowerCase()))
+      return "Este paciente ya existe";
 
     const edadNum = Number(edad);
     const tallaNum = Number(talla);
     const pesoNum = Number(peso);
 
-    if (isNaN(edadNum) || edadNum < 3 || edadNum > 100) {
-      toast.error("Ingresa una edad real (entre 3 y 100 años)", {
+    if (isNaN(edadNum) || edadNum < 3 || edadNum > 100)
+      return "Ingresa una edad real (entre 3 y 100 años)";
+    if (isNaN(tallaNum) || tallaNum < 20 || tallaNum > 300)
+      return "Ingresa una altura real en cm (entre 20 y 300)";
+    if (isNaN(pesoNum) || pesoNum < 20 || pesoNum > 300)
+      return "Ingresa un peso real en kg (entre 20 y 300)";
+
+    return null;
+  };
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const mensajeError = validar();
+    if (mensajeError) {
+      toast.error(mensajeError, {
         style: { background: "#202020", color: "#fff" },
       });
-      error = true;
-    }
-
-    if (isNaN(tallaNum) || tallaNum < 20 || tallaNum > 300) {
-      toast.error("Ingresa una altura real en cm (entre 20 y 300)", {
-        style: { background: "#202020", color: "#fff" },
-      });
-      error = true;
-    }
-
-    if (isNaN(pesoNum) || pesoNum < 20 || pesoNum > 300) {
-      toast.error("Ingresa un peso real en kg (entre 20 y 300)", {
-        style: { background: "#202020", color: "#fff" },
-      });
-      error = true;
-    }
-
-    if (error === true) {
       return;
     }
+
+    const edadNum = Number(edad);
+    const tallaNum = Number(talla);
+    const pesoNum = Number(peso);
 
     try {
       // Se calculan los datos en Rust automáticamente
@@ -134,6 +120,7 @@ function PacientForm({ onNavigate }: PacientFormProps) {
       });
 
       addPaciente(nuevoPaciente);
+      seleccionarPaciente(nuevoPaciente.id); // NUEVO
 
       setNombre("");
       setEdad("");

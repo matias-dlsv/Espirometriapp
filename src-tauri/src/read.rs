@@ -24,16 +24,16 @@ pub fn leer_tabla_espirometria(
     sexo: &str,
     raza: &str,
     app_handle: &tauri::AppHandle,
-) -> IndicesEspirometria {
+) -> Result<IndicesEspirometria, String> {
     // 2. Buscamos la carpeta secreta de recursos y le pegamos el nombre de tu archivo
     let excel_path = app_handle
         .path()
         .resource_dir()
-        .expect("No se pudo encontrar la carpeta de recursos")
+        .map_err(|e| format!("No se pudo encontrar la carpeta de recursos: {}", e))?
         .join("lookuptables.xls");
 
-    // 3. Abrimos el workbook usando la ruta dinámica
-    let mut excel: Xls<_> = open_workbook(excel_path).expect("No se pudo abrir el archivo Excel");
+    let mut excel: Xls<_> = open_workbook(excel_path)
+        .map_err(|e| format!("No se pudo abrir el archivo Excel: {}", e))?;
 
     let gender = if sexo == "Masculino" {
         "male"
@@ -48,10 +48,10 @@ pub fn leer_tabla_espirometria(
 
     match raza {
         "Afrodescendiente" => afr_am = 1.0,
-        "Asiático (Noreste)" => ne_asia = 1.0,
-        "Asiático (Sureste)" => se_asia = 1.0,
-        "Otro" => other = 1.0,
-        _ => {}
+        "Asiatico NE" => ne_asia = 1.0,
+        "Asiatico SE" => se_asia = 1.0,
+        "Otra Raza / Etnia mixta" => other = 1.0,
+        _ => {} // Caucasico cae aquí correctamente (todos los coeficientes en 0.0)
     }
 
     let mut indices_calculados = Vec::new();
@@ -185,9 +185,9 @@ pub fn leer_tabla_espirometria(
     }
 
     // Retornamos la estructura principal asignando cada valor del vector
-    IndicesEspirometria {
+    Ok(IndicesEspirometria {
         fev1: indices_calculados[0],
         fvc: indices_calculados[1],
         fev1fvc: indices_calculados[2],
-    }
+    })
 }

@@ -1,20 +1,18 @@
 import { create } from 'zustand';
+import { PatronClinico } from "../utils/transformaciones";
 
-// 1. NUEVA INTERFAZ: Espejo exacto de ValoresMLS en Rust
 export interface ValoresMLS {
   m: number;
   l: number;
   s: number;
 }
 
-// 2. ACTUALIZADO: Espejo exacto de IndicesEspirometria en Rust
 export interface ParametrosEspirometria {
-  fvc: ValoresMLS;     
-  fev1: ValoresMLS;    
-  fev1fvc: ValoresMLS; 
+  fvc: ValoresMLS;
+  fev1: ValoresMLS;
+  fev1fvc: ValoresMLS;
 }
 
-// --- NUEVO: Interfaz para guardar las maniobras en el frontend ---
 export interface ManiobraGuardada {
   datosFlujoVolumen: number[][];
   datosVolumenTiempo: number[][];
@@ -26,18 +24,14 @@ export interface ManiobraGuardada {
   };
   fecha: string;
 }
-// -----------------------------------------------------------------
 
-// 3. Espejo exacto de DatosEspirometria en Rust
 export interface DatosEspirometria {
   parametros: ParametrosEspirometria;
-  curva_generada: number[]; 
+  curva_generada: number[];
   fecha: string;
-  // NUEVO: Arreglo opcional para ir guardando las pruebas exitosas
-  maniobras?: ManiobraGuardada[]; 
+  maniobras?: ManiobraGuardada[];
 }
 
-// 4. Estructura del Paciente (Sin cambios)
 export interface Paciente {
   id: string;
   nombre: string;
@@ -47,21 +41,24 @@ export interface Paciente {
   raza: string;
   peso: number;
   fechaRegistro: string;
-  espirometrias: DatosEspirometria[]; 
+  espirometrias: DatosEspirometria[];
 }
 
-// Interfaz del estado de Zustand
 interface PacientState {
   pacientes: Paciente[];
+  pacienteSeleccionado: Paciente | null;
   addPaciente: (paciente: Paciente) => void;
   setPacientes: (pacientes: Paciente[]) => void;
-  // NUEVO: Acción para guardar la maniobra
-  guardarManiobra: (pacienteId: string, maniobra: ManiobraGuardada) => void; 
+  seleccionarPaciente: (id: string) => void;
+  guardarManiobra: (pacienteId: string, maniobra: ManiobraGuardada) => void;
+  // En la interfaz PacientState agrega:
+  patronActivo: PatronClinico | null;
+  setPatron: (patron: PatronClinico | null) => void;
 }
 
-// Store de Zustand
 export const usePacientStore = create<PacientState>((set) => ({
   pacientes: [],
+  pacienteSeleccionado: null,
 
   addPaciente: (paciente) =>
     set((state) => ({
@@ -70,32 +67,32 @@ export const usePacientStore = create<PacientState>((set) => ({
 
   setPacientes: (nuevosPacientes) =>
     set(() => ({
-      pacientes: nuevosPacientes
+      pacientes: nuevosPacientes,
     })),
 
-  // NUEVO: Implementación de la acción
+  seleccionarPaciente: (id) =>
+    set((state) => ({
+      pacienteSeleccionado: state.pacientes.find((p) => p.id === id) ?? null,
+    })),
+
   guardarManiobra: (pacienteId, maniobra) =>
     set((state) => ({
       pacientes: state.pacientes.map((paciente) => {
         if (paciente.id === pacienteId) {
-          // Copiamos las espirometrías del paciente
           const espirometriasActualizadas = [...paciente.espirometrias];
-          
+
           if (espirometriasActualizadas.length > 0) {
-            // Trabajamos sobre la última espirometría activa
             const ultimaEspiroIndex = espirometriasActualizadas.length - 1;
             const ultimaEspiro = { ...espirometriasActualizadas[ultimaEspiroIndex] };
-            
-            // Agregamos la nueva maniobra al arreglo
             ultimaEspiro.maniobras = [...(ultimaEspiro.maniobras || []), maniobra];
-            
-            // Actualizamos la espirometría en el arreglo
             espirometriasActualizadas[ultimaEspiroIndex] = ultimaEspiro;
           }
 
           return { ...paciente, espirometrias: espirometriasActualizadas };
         }
-        return paciente; // Si no es el paciente, lo dejamos igual
+        return paciente;
       }),
     })),
-}));
+    patronActivo: null,
+    setPatron: (patron) => set(() => ({ patronActivo: patron })),
+})); // <-- este es el único cierre del create()
