@@ -77,14 +77,14 @@ export const aplicarTos = (
 
   // Spike proporcional al flujo en ese momento en vez de valores fijos
   // Una tos realista sube ~40-60% sobre el flujo local
-  const alturaPico  = flujoBase * 0.5;
-  const alturaCima  = flujoBase * 0.7;
+  const alturaPico = flujoBase * 0.5;
+  const alturaCima = flujoBase * 0.7;
   const alturaBajada = flujoBase * 0.25;
 
-  const spikePico:    number[] = [xTos - 0.05, flujoBase + alturaPico];
-  const spikeCima:    number[] = [xTos,         flujoBase + alturaCima];
-  const spikeBajada:  number[] = [xTos + 0.05,  flujoBase + alturaBajada];
-  const spikeRetorno: number[] = [xTos + 0.1,   flujoBase];
+  const spikePico: number[] = [xTos - 0.05, flujoBase + alturaPico];
+  const spikeCima: number[] = [xTos, flujoBase + alturaCima];
+  const spikeBajada: number[] = [xTos + 0.05, flujoBase + alturaBajada];
+  const spikeRetorno: number[] = [xTos + 0.1, flujoBase];
 
   const resultado = [...curva];
   resultado.splice(insertarEn, 0, spikePico, spikeCima, spikeBajada, spikeRetorno);
@@ -109,4 +109,31 @@ export const aplicarPatron = (
   if (patron.restriccion) resultado = aplicarRestriccion(resultado);
   if (patron.tos) resultado = aplicarTos(resultado, fvc);
   return resultado;
+};
+
+// Calcula índices con variación correlacionada al peak real de la maniobra.
+// Si el peak fue más alto que el esperado, FEV1 sube proporcionalmente.
+// FVC también sube pero menos. FEV1/FVC se deriva de ambos.
+export const calcularIndicesManiobra = (
+  fvcTeorico: number,
+  fev1Teorico: number,
+  peakFlujo: number,
+): { fvc: number; fev1: number; fev1fvc: number } => {
+  // El peak esperado es fev1 * 1.45 (punto medio del rango de peakFlujo)
+  const peakEsperado = fev1Teorico * 1.525;
+  // Cuánto se desvió el peak real del esperado (positivo = más fuerte)
+  const correlacion = (peakFlujo / peakEsperado) - 1; // aprox -0.05 a +0.05
+
+  // FEV1: fuerte correlación con el peak + ruido pequeño independiente
+  const deltaFev1 = correlacion * 0.6 + (Math.random() * 0.04 - 0.02);
+  const fev1 = fev1Teorico * (1 + deltaFev1);
+
+  // FVC: correlación más débil + ruido independiente
+  const deltaFvc = correlacion * 0.3 + (Math.random() * 0.04 - 0.02);
+  const fvc = fvcTeorico * (1 + deltaFvc);
+
+  // FEV1/FVC derivado — no perturbado independientemente
+  const fev1fvc = fev1 / fvc;
+
+  return { fvc, fev1, fev1fvc };
 };

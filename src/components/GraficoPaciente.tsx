@@ -6,6 +6,7 @@ import {
   TooltipComponent,
   GridComponent,
   DatasetComponent,
+  LegendComponent, // Añadido para mostrar qué línea es cada maniobra
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { LineSeriesOption } from "echarts/charts";
@@ -15,6 +16,7 @@ echarts.use([
   TooltipComponent,
   GridComponent,
   DatasetComponent,
+  LegendComponent, // Activado
   LineChart,
   CanvasRenderer,
 ]);
@@ -27,11 +29,13 @@ interface GraficoProps {
   ejeY?: string;
   data?: number[][];
   dataSecundaria?: number[][];
+  multiData?: { puntos: number[][]; color: string; label?: string }[]; // NUEVO: Soporte para múltiples curvas
   mostrarEstatico?: boolean;
   minX?: number;
   maxX?: number;
   minY?: number;
   maxY?: number;
+  duracionAnimacion?: number;
 }
 
 export interface GraficoRef {
@@ -49,11 +53,13 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       ejeY = "",
       data = [],
       dataSecundaria,
+      multiData, // NUEVO
       mostrarEstatico = false,
       minX = 0,
       maxX = 10,
       minY = 0,
       maxY = 10,
+      duracionAnimacion = 15000,
     },
     ref,
   ) => {
@@ -67,25 +73,41 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     ): echarts.EChartsCoreOption => {
       const series: LineSeriesOption[] = [];
 
-      if (currentSecundaria && currentSecundaria.length > 0) {
+      // NUEVO: Si existe multiData, dibujamos todas las líneas
+      if (multiData && multiData.length > 0) {
+        multiData.forEach((serie, index) => {
+          series.push({
+            name: serie.label,
+            data: serie.puntos,
+            type: "line",
+            smooth: false,
+            showSymbol: false,
+            lineStyle: { width: 2, color: serie.color },
+            z: 3 + index,
+          });
+        });
+      } else {
+        // LÓGICA ORIGINAL: Se mantiene intacta para no romper la vista normal
+        if (currentSecundaria && currentSecundaria.length > 0) {
+          series.push({
+            data: currentSecundaria,
+            type: "line",
+            smooth: false,
+            showSymbol: false,
+            lineStyle: { width: 2, color: colorSecundario },
+            z: 1,
+          });
+        }
+
         series.push({
-          data: currentSecundaria,
+          data: currentData,
           type: "line",
           smooth: false,
           showSymbol: false,
-          lineStyle: { width: 2, color: colorSecundario },
-          z: 1,
+          lineStyle: { width: 3, color: colorLinea },
+          z: 2,
         });
       }
-
-      series.push({
-        data: currentData,
-        type: "line",
-        smooth: false,
-        showSymbol: false,
-        lineStyle: { width: 3, color: colorLinea },
-        z: 2,
-      });
 
       return {
         title: {
@@ -94,7 +116,14 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
           textStyle: { color: "#333", fontSize: 14, fontWeight: "bold" },
         },
         tooltip: { trigger: "axis" },
-        grid: { top: 35, bottom: 15, left: 25, right: 25, containLabel: true },
+        legend: multiData ? { top: 25, icon: "circle" } : undefined, // Leyenda solo si es interpolación
+        grid: {
+          top: multiData ? 55 : 35,
+          bottom: 15,
+          left: 25,
+          right: 25,
+          containLabel: true,
+        },
         xAxis: {
           type: "value",
           name: ejeX,
@@ -142,6 +171,7 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
 
       const dataInicial = mostrarEstatico ? data : [];
       const secundariaInicial = mostrarEstatico ? dataSecundaria : undefined;
+
       chartInstanceRef.current?.setOption(
         getOption(dataInicial, secundariaInicial),
         true,
@@ -167,21 +197,22 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       minY,
       maxY,
       mostrarEstatico,
-      data,          // CLAVE: actualiza el gráfico si cambian los datos
+      data,
       dataSecundaria,
+      multiData, // NUEVO: Actualiza si cambia el array de múltiples curvas
     ]);
 
     useImperativeHandle(
       ref,
       () => ({
         ejecutarAnimacion: () => {
-          if (mostrarEstatico) return;
+          if (mostrarEstatico || multiData) return; // Detiene la animación si es interpolación
           const instance = chartInstanceRef.current;
           if (!instance || !data || data.length < 2) return;
 
           if (animationRef.current) cancelAnimationFrame(animationRef.current);
 
-          const totalDuration = 10000;
+          const totalDuration = duracionAnimacion;
           let startTime: number | null = null;
 
           const animate = (timestamp: number) => {
@@ -217,12 +248,23 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
           chartInstanceRef.current?.resize();
         },
       }),
-      [data, mostrarEstatico],
+      [data, mostrarEstatico, multiData],
     );
 
     return (
-      <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <div ref={chartRef} style={{ width: "100%", height: "100%", minHeight: "200px" }} />
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <div
+          ref={chartRef}
+          style={{ width: "100%", height: "100%", minHeight: "200px" }}
+        />
       </div>
     );
   },

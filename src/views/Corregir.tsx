@@ -10,12 +10,11 @@ interface CorregirProps {
   data: NavigationPayload | null;
 }
 
-// Índice donde termina el bucle 3 y empieza la exhalación forzada
 const INICIO_EXHALACION = 24;
 
 export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
-  const guardarManiobra  = usePacientStore((state) => state.guardarManiobra);
-  const pacienteActual   = usePacientStore((state) => state.pacienteSeleccionado);
+  const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
+  const pacienteActual  = usePacientStore((state) => state.pacienteSeleccionado);
 
   const [criterios, setCriterios] = useState({
     vtestables: false,
@@ -33,14 +32,12 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
   const fvc = parametros?.fvc.m ?? 5.241;
 
-  // Separamos bucles (gris) de exhalación forzada (azul)
   const datosBucles     = data?.datosFlujoVolumen.slice(0, INICIO_EXHALACION + 1) ?? [];
   const datosExhalacion = data?.datosFlujoVolumen.slice(INICIO_EXHALACION) ?? [];
 
   const handleGuardarYContinuar = () => {
     if (!todosCumplen || !data || !pacienteActual) return;
 
-    // Leemos la cantidad ANTES de guardar — el store aún no se actualizó
     const cantidadAntes = pacienteActual.espirometrias[0]?.maniobras?.length ?? 0;
 
     const nuevaManiobra = {
@@ -48,11 +45,11 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
       datosVolumenTiempo: data.datosVolumenTiempo,
       criterios,
       fecha: new Date().toISOString(),
+      indices: data.indices, // NUEVO
     };
 
     guardarManiobra(pacienteActual.id, nuevaManiobra);
 
-    // Ahora sí calculamos cuántas hay tras guardar
     const cantidadDespues = cantidadAntes + 1;
 
     if (onNavigate) {
@@ -80,11 +77,9 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
 
   return (
     <div className={styles.layout}>
-      {/* COLUMNA IZQUIERDA */}
       <div className={styles.chartsColumn}>
         <button onClick={onBack} className={styles.mobileBackBtn}>← Volver</button>
 
-        {/* GRÁFICO 1: Flujo/Volumen — bucles en gris, exhalación en azul */}
         <div className={styles.chartCard}>
           <GraficoPaciente
             titulo="Flujo / Volumen"
@@ -102,7 +97,6 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           />
         </div>
 
-        {/* GRÁFICO 2: Volumen/Tiempo — estático */}
         <div className={styles.chartCard}>
           <GraficoPaciente
             titulo="Volumen / Tiempo"
@@ -119,7 +113,6 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
         </div>
       </div>
 
-      {/* COLUMNA DERECHA */}
       <aside className={styles.controlsPanel}>
         <div className={styles.panelHeader}>
           <div>
@@ -132,6 +125,27 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
             Descartar
           </button>
         </div>
+
+        {/* Índices de esta maniobra */}
+        {data.indices && (
+          <div className={styles.card}>
+            <span className={styles.label}>Índices de esta maniobra</span>
+            <div className={styles.indicesGrid}>
+              <div className={styles.indiceItem}>
+                <span className={styles.indiceLabel}>FVC</span>
+                <span className={styles.indiceValor}>{data.indices.fvc.toFixed(2)} L</span>
+              </div>
+              <div className={styles.indiceItem}>
+                <span className={styles.indiceLabel}>FEV1</span>
+                <span className={styles.indiceValor}>{data.indices.fev1.toFixed(2)} L</span>
+              </div>
+              <div className={styles.indiceItem}>
+                <span className={styles.indiceLabel}>FEV1/FVC</span>
+                <span className={styles.indiceValor}>{(data.indices.fev1fvc * 100).toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className={styles.card}>
           <p className={styles.instructionsText}>

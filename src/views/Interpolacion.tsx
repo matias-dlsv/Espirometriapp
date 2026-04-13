@@ -1,107 +1,165 @@
-import { usePacientStore } from "../store/pacientStore";
+import { useMemo } from "react";
 import styles from "./Interpolacion.module.css";
+import GraficoPaciente from "../components/GraficoPaciente";
+import { AppView, NavigationPayload } from "../App";
+import { usePacientStore } from "../store/pacientStore";
 
 interface InterpolacionProps {
   onBack: () => void;
+  onNavigate: (view: AppView, payload?: NavigationPayload) => void;
 }
 
-export default function Interpolacion({ onBack }: InterpolacionProps) {
-  const pacientes = usePacientStore((state) => state.pacientes);
-  const pacienteActual = pacientes[pacientes.length - 1];
+const COLORES = ["#3b82f6", "#10b981", "#f59e0b"];
 
-  if (
-    !pacienteActual ||
-    !pacienteActual.espirometrias ||
-    pacienteActual.espirometrias.length === 0
-  ) {
+export default function Interpolacion({ onBack, onNavigate }: InterpolacionProps) {
+  const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
+  const patronActivo   = usePacientStore((state) => state.patronActivo);
+
+  const maniobrasGuardadas = pacienteActual?.espirometrias?.[0]?.maniobras ?? [];
+  const parametros         = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
+
+  const fvc     = parametros?.fvc.m     ?? 0;
+  const fev1    = parametros?.fev1.m    ?? 0;
+  const fev1fvc = parametros?.fev1fvc.m ?? 0;
+
+  const maniobras = useMemo(() => {
+    return maniobrasGuardadas.map((m, i) => ({
+      id: i + 1,
+      color: COLORES[i % COLORES.length],
+      flujoVolumen: m.datosFlujoVolumen,
+      volumenTiempo: m.datosVolumenTiempo,
+      criterios: m.criterios,
+      fecha: m.fecha,
+      indices: m.indices ?? { fvc, fev1, fev1fvc },
+    }));
+  }, [maniobrasGuardadas, fvc, fev1, fev1fvc]);
+
+  const mejorManiobraId = useMemo(() => {
+    if (maniobras.length === 0) return null;
+    const perfecta = maniobras.find((m) =>
+      Object.values(m.criterios).every(Boolean)
+    );
+    return perfecta?.id ?? maniobras[0].id;
+  }, [maniobras]);
+
+  if (maniobras.length === 0) {
     return (
-      <div className={styles.layout}>
-        <h2>
-          Error: No se encontró la información del paciente o la espirometría.
-        </h2>
-        <button onClick={onBack}>Volver al inicio</button>
+      <div className={styles.container}>
+        <div className={styles.empty}>
+          <h2>No hay maniobras guardadas</h2>
+          <p>Debes completar al menos una maniobra aceptable.</p>
+          <button onClick={onBack} className={styles.finishBtn}>Volver</button>
+        </div>
       </div>
     );
   }
 
-  const espirometriaActual = pacienteActual.espirometrias[0];
-  const parametros = espirometriaActual.parametros;
-  const maniobras = espirometriaActual.maniobras || [];
-
-  const getValor = (param: any) => {
-    if (typeof param === "number") return param.toFixed(2);
-    if (param?.m !== undefined) return param.m.toFixed(2);
-    return "0.00";
-  };
-
-  const fvc = getValor(parametros.fvc);
-  const fev1 = getValor(parametros.fev1);
-  const fev1fvc = getValor(parametros.fev1fvc);
-
-  const handleFinalizar = () => {
-    alert("¡Prueba finalizada y guardada con éxito!");
-    onBack();
-  };
-
   return (
-    <div className={styles.layout}>
-      {/* SECCIÓN IZQUIERDA: GRÁFICOS SUPERPUESTOS */}
-      <div className={styles.chartsColumn}>
-        <h2 style={{ color: "white", margin: 0 }}>
-          Curvas Interpoladas ({maniobras.length}/3)
-        </h2>
-
-        {/* GRÁFICO 1: Flujo / Volumen Interpolado */}
-        <div className={styles.chartContainer}>
-          <p style={{ color: "#64748b" }}>
-            [Área para GraficoMultiPaciente: Flujo / Volumen con{" "}
-            {maniobras.length} curvas superpuestas]
-          </p>
+    <div className={styles.container}>
+      {/* HEADER */}
+      <header className={styles.header}>
+        <button onClick={onBack} className={styles.backBtn}>← Volver</button>
+        <div>
+          <h1>Comparativa de Maniobras</h1>
+          {pacienteActual && (
+            <span className={styles.patientName}>{pacienteActual.nombre}</span>
+          )}
+          {patronActivo && (
+            <span className={styles.patronBadge}>{patronActivo.nombre}</span>
+          )}
         </div>
+      </header>
 
-        {/* GRÁFICO 2: Volumen / Tiempo Interpolado */}
-        <div className={styles.chartContainer}>
-          <p style={{ color: "#64748b" }}>
-            [Área para GraficoMultiPaciente: Volumen / Tiempo con{" "}
-            {maniobras.length} curvas superpuestas]
-          </p>
-        </div>
-      </div>
-
-      {/* SECCIÓN DERECHA: RESULTADOS E ÍNDICES */}
-      <aside className={styles.resultsPanel}>
-        <h2 className={styles.title}>Resultados Finales</h2>
-
-        <p style={{ color: "#64748b", marginBottom: "20px" }}>
-          Paciente: <strong>{pacienteActual.nombre}</strong>
-          <br />
-          Edad: {pacienteActual.edad} años | Talla: {pacienteActual.talla} cm
-        </p>
-
-        <div className={styles.indicesCard}>
-          <div className={styles.indiceRow}>
-            <span className={styles.indiceLabel}>FVC (L)</span>
-            <span className={styles.indiceLabel}>Predicho</span>
-            <span className={styles.indiceValue}>{fvc}</span>
+      <main className={styles.content}>
+        {/* GRÁFICOS */}
+        <div className={styles.chartsSection}>
+          <div className={styles.chartWrapper}>
+            <GraficoPaciente
+              titulo="Comparativa Flujo / Volumen"
+              ejeX="Volumen (L)"
+              ejeY="Flujo (L/s)"
+              mostrarEstatico={true}
+              multiData={maniobras.map((m) => ({
+                puntos: m.flujoVolumen,
+                color: m.color,
+                label: `M${m.id}${m.id === mejorManiobraId ? " (mejor)" : ""}`,
+              }))}
+              minX={-3}
+              maxX={12}
+              minY={-4}
+              maxY={12}
+            />
           </div>
 
-          <div className={styles.indiceRow}>
-            <span className={styles.indiceLabel}>FEV1 (L)</span>
-            <span className={styles.indiceLabel}>Predicho</span>
-            <span className={styles.indiceValue}>{fev1}</span>
-          </div>
-
-          <div className={styles.indiceRow}>
-            <span className={styles.indiceLabel}>FEV1/FVC (%)</span>
-            <span className={styles.indiceLabel}>Predicho</span>
-            <span className={styles.indiceValue}>{fev1fvc}</span>
+          <div className={styles.chartWrapper}>
+            <GraficoPaciente
+              titulo="Comparativa Volumen / Tiempo"
+              ejeX="Tiempo (s)"
+              ejeY="Volumen (L)"
+              mostrarEstatico={true}
+              multiData={maniobras.map((m) => ({
+                puntos: m.volumenTiempo,
+                color: m.color,
+                label: `M${m.id}`,
+              }))}
+              minX={0}
+              maxX={17}
+              minY={0}
+              maxY={Math.ceil(fvc) + 1}
+            />
           </div>
         </div>
 
-        <button onClick={handleFinalizar} className={styles.finishButton}>
-          Finalizar y Guardar Reporte
-        </button>
-      </aside>
+        {/* TABLA — filas = maniobras, columnas = índices */}
+        <section className={styles.tableSection}>
+          <table className={styles.resultsTable}>
+            <thead>
+              <tr>
+                <th>Maniobra</th>
+                <th>FVC (L)</th>
+                <th>FEV1 (L)</th>
+                <th>FEV1/FVC (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {maniobras.map((m) => {
+                const esMejor = m.id === mejorManiobraId;
+                return (
+                  <tr key={m.id} className={esMejor ? styles.bestRow : ""}>
+                    <td>
+                      <div className={styles.maniobraCell}>
+                        <span
+                          className={styles.colorDot}
+                          style={{ background: m.color }}
+                        />
+                        <span>Maniobra {m.id}</span>
+                        {esMejor && (
+                          <span className={styles.mejorBadge}>MEJOR</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className={esMejor ? styles.best : ""}>
+                      {m.indices.fvc.toFixed(2)}
+                    </td>
+                    <td className={esMejor ? styles.best : ""}>
+                      {m.indices.fev1.toFixed(2)}
+                    </td>
+                    <td className={esMejor ? styles.best : ""}>
+                      {(m.indices.fev1fvc * 100).toFixed(1)}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      </main>
+
+      <footer className={styles.footer}>
+  <button className={styles.finishBtn} onClick={() => onNavigate("resultado")}>
+    Siguiente →
+  </button>
+</footer>
     </div>
   );
 }

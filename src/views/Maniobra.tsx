@@ -3,7 +3,7 @@ import styles from "./Maniobra.module.css";
 import GraficoPaciente, { GraficoRef } from "../components/GraficoPaciente";
 import { usePacientStore } from "../store/pacientStore";
 import { AppView, NavigationPayload } from "../App";
-import { aplicarPatron } from "../utils/transformaciones";
+import { aplicarPatron, calcularIndicesManiobra } from "../utils/transformaciones";
 
 interface ManiobraProps {
   onBack: () => void;
@@ -22,133 +22,106 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
   const [progressStep, setProgressStep] = useState(0);
   const [isExamining, setIsExamining] = useState(false);
 
-  const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
-  const patronActivo = usePacientStore((state) => state.patronActivo);
+  const pacienteActual  = usePacientStore((state) => state.pacienteSeleccionado);
+  const patronActivo    = usePacientStore((state) => state.patronActivo);
+
+  const maniobrasGuardadas = pacienteActual?.espirometrias?.[0]?.maniobras?.length ?? 0;
 
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
-  const fvc = parametros?.fvc.m ?? 5.241;
+  const fvc  = parametros?.fvc.m  ?? 5.241;
   const fev1 = parametros?.fev1.m ?? 4.511;
 
-  const { datosFlujoVolumen, datosVolumenTiempo } = useMemo(() => {
+  const { datosFlujoVolumen, datosVolumenTiempo, indicesManiobra } = useMemo(() => {
+    // Peak al inicio del useMemo para que calcularIndicesManiobra lo use
     const peakFlujo = fev1 * (1.45 + Math.random() * 0.15);
-    const peakVol = fvc * (0.13 + Math.random() * 0.05);
+    const peakVol   = fvc  * (0.13 + Math.random() * 0.05);
 
     const cx = fvc * 0.55;
     const rx = fvc * 0.12;
     const ry = 0.6;
     const casiFvc = fvc * 0.96;
-    const multiplicadorRuido = 0.6; // Control maestro de temblor
+    const multiplicadorRuido = 0.6;
 
-    // 1. GENERADOR DE ELIPSES "ORGÁNICAS" (Más ovaladas e irregulares)
-    const generarElipseOrganica = (
-      centroX: number,
-      radioX: number,
-      radioY: number,
-      puntos = 50,
-    ): number[][] => {
+    // 1. ELIPSES
+    const generarElipseOrganica = (centroX: number, radioX: number, radioY: number, puntos = 120): number[][] => {
       const elipse: number[][] = [];
       for (let i = 0; i <= puntos; i++) {
         const theta = (i / puntos) * 2 * Math.PI;
-
-        // Usamos Math.pow para que la curva sea menos "redonda" y más "ovalada/achatada"
-        // Un exponente > 1 la hace más puntiaguda, < 1 más rectangular.
         const factorForma = Math.sin(theta) > 0 ? 0.9 : 1.2;
-
         const rXActual = perturbar(radioX, 0.02 * multiplicadorRuido);
         const rYActual = perturbar(radioY, 0.05 * multiplicadorRuido);
-
         const x = centroX + rXActual * Math.cos(theta);
-        // Aplicamos el factor de forma al eje Y (Flujo)
-        const y =
-          -rYActual *
-          Math.sign(Math.sin(theta)) *
-          Math.pow(Math.abs(Math.sin(theta)), factorForma);
-
-        elipse.push([
-          perturbar(x, 0.005 * multiplicadorRuido),
-          perturbar(y, 0.02 * multiplicadorRuido),
-        ]);
+        const y = -rYActual * Math.sign(Math.sin(theta)) * Math.pow(Math.abs(Math.sin(theta)), factorForma);
+        elipse.push([perturbar(x, 0.005 * multiplicadorRuido), perturbar(y, 0.02 * multiplicadorRuido)]);
       }
       return elipse;
     };
 
-    const bucle1 = generarElipseOrganica(cx, rx, ry);
-    const bucle2 = generarElipseOrganica(cx, rx, ry * 1.05);
+    const bucle1 = generarElipseOrganica(cx, rx, ry, 120);
+    const bucle2 = generarElipseOrganica(cx, rx, ry * 1.05, 120);
 
-    // 2. BUCLE 3 INHALACIÓN (Menos constante)
+    // 2. BUCLE 3 INHALACIÓN
     const bucle3Inhalacion: number[][] = [];
-    for (let i = 0; i <= 30; i++) {
-      const theta = (i / 30) * Math.PI;
+    for (let i = 0; i <= 80; i++) {
+      const theta = (i / 80) * Math.PI;
       const x = cx + perturbar(rx, 0.02 * multiplicadorRuido) * Math.cos(theta);
-      // Alteramos la curva para que no sea un arco constante
-      const y =
-        -perturbar(ry * 1.1, 0.08 * multiplicadorRuido) *
-        Math.pow(Math.sin(theta), 0.8);
+      const y = -perturbar(ry * 1.1, 0.08 * multiplicadorRuido) * Math.pow(Math.sin(theta), 0.8);
       bucle3Inhalacion.push([perturbar(x, 0.005), y]);
     }
 
-    // 3. EXHALACIÓN EXTENDIDA (Mantiene el estiramiento hacia casiFvc)
+    // 3. EXHALACIÓN EXTENDIDA
     const bucle3Exhalacion: number[][] = [];
     const cx_exh = (cx - rx + casiFvc) / 2;
     const rx_exh = (casiFvc - (cx - rx)) / 2;
-    for (let i = 1; i <= 40; i++) {
-      const theta = Math.PI + (i / 40) * Math.PI;
+    for (let i = 1; i <= 100; i++) {
+      const theta = Math.PI + (i / 100) * Math.PI;
       const x = cx_exh + rx_exh * Math.cos(theta);
-      const y =
-        -perturbar(ry * 1.3, 0.1 * multiplicadorRuido) * Math.sin(theta);
+      const y = -perturbar(ry * 1.3, 0.1 * multiplicadorRuido) * Math.sin(theta);
       bucle3Exhalacion.push([perturbar(x, 0.005), y]);
     }
 
-    // 4. INSPIRACIÓN PROFUNDA MÁXIMA (Asimétrica y Ovalada)
-    // Es la curva grande antes del soplido fuerte
+    // 4. INSPIRACIÓN PROFUNDA MÁXIMA
     const inspiracionProfunda: number[][] = [];
     const cx_insp = casiFvc / 2;
-    for (let i = 1; i <= 60; i++) {
-      const t = i / 60;
+    for (let i = 1; i <= 150; i++) {
+      const t = i / 150;
       const theta = t * Math.PI;
-
-      // Movimiento en X
       const x = cx_insp + cx_insp * Math.cos(theta);
-
-      // FORMA ASIMÉTRICA:
-      // Usamos una función que hace que la curva caiga rápido y suba más lento
-      // 'y' no es un seno puro, sino uno modificado por la posición 't'
       const flujoBase = -2.0 * Math.sin(theta);
-      const deformacionAsimetrica = 1 + 0.3 * Math.sin(theta * 0.5); // Desplaza el pico
+      const deformacionAsimetrica = 1 + 0.3 * Math.sin(theta * 0.5);
       const y = flujoBase * deformacionAsimetrica;
-
-      inspiracionProfunda.push([
-        perturbar(x, 0.005),
-        perturbar(y, 0.03 * multiplicadorRuido),
-      ]);
+      inspiracionProfunda.push([perturbar(x, 0.005), perturbar(y, 0.03 * multiplicadorRuido)]);
     }
 
-    // --- EL RESTO SE MANTIENE IGUAL ---
+    // 5. EXHALACIÓN FORZADA
+    const exhalacionForzada: number[][] = [];
+
+    // 5.1 SUBIDA RÁPIDA
+    const puntosSubida = 30;
+    for (let i = 0; i <= puntosSubida; i++) {
+      const t = i / puntosSubida;
+      const x = t * peakVol;
+      const y = peakFlujo * Math.pow(t, 0.7);
+      exhalacionForzada.push([perturbar(x, 0.001), perturbar(y, 0.01)]);
+    }
+
+    // 5.2 BAJADA PROLONGADA
+    const puntosRampa = 300;
+    for (let i = 1; i <= puntosRampa; i++) {
+      const t = i / puntosRampa;
+      const curveT = Math.pow(t, 0.7);
+      const vol = peakVol + (fvc - peakVol) * curveT;
+      const flujo = peakFlujo * Math.pow(1 - curveT, 1.5);
+      exhalacionForzada.push([perturbar(vol, 0.002), perturbar(flujo, 0.01)]);
+    }
+
     const flujoVolumen: number[][] = [
       ...bucle1,
       ...bucle2,
       ...bucle3Inhalacion,
       ...bucle3Exhalacion,
       ...inspiracionProfunda,
-      [0, 0],
-      [peakVol, peakFlujo],
-      [fvc * 0.21, perturbar(fev1 * 1.38, 0.01)],
-      [fvc * 0.25, perturbar(fev1 * 1.3, 0.01)],
-      [fvc * 0.3, perturbar(fev1 * 1.22, 0.02)],
-      [fvc * 0.35, perturbar(fev1 * 1.13, 0.02)],
-      [fvc * 0.4, perturbar(fev1 * 1.06, 0.02)],
-      [fvc * 0.45, perturbar(fev1 * 0.97, 0.03)],
-      [fvc * 0.5, perturbar(fev1 * 0.89, 0.03)],
-      [fvc * 0.55, perturbar(fev1 * 0.79, 0.03)],
-      [fvc * 0.6, perturbar(fev1 * 0.69, 0.03)],
-      [fvc * 0.65, perturbar(fev1 * 0.6, 0.04)],
-      [fvc * 0.7, perturbar(fev1 * 0.52, 0.04)],
-      [fvc * 0.75, perturbar(fev1 * 0.43, 0.04)],
-      [fvc * 0.8, perturbar(fev1 * 0.33, 0.05)],
-      [fvc * 0.85, perturbar(fev1 * 0.22, 0.05)],
-      [fvc * 0.9, perturbar(fev1 * 0.15, 0.05)],
-      [fvc * 0.95, perturbar(fev1 * 0.08, 0.05)],
-      [fvc, 0],
+      ...exhalacionForzada,
     ];
 
     const volumenTiempo: number[][] = [
@@ -175,9 +148,13 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
     const flujoVolumenFinal = aplicarPatron(flujoVolumen, fvc, patronActivo);
 
+    // Índices correlacionados con el peak real de esta maniobra
+    const indicesManiobra = calcularIndicesManiobra(fvc, fev1, peakFlujo);
+
     return {
       datosFlujoVolumen: flujoVolumenFinal,
       datosVolumenTiempo: volumenTiempo,
+      indicesManiobra,
     };
   }, [fev1, fvc, patronActivo]);
 
@@ -196,22 +173,20 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       setTimer(`${mins}:${secs}`);
     }, 1000);
 
-    setTimeout(() => setProgressStep(1), 5000);
-    setTimeout(() => setProgressStep(2), 7000);
-    setTimeout(() => setProgressStep(3), 7800);
+    setTimeout(() => setProgressStep(1), 4000);
+    setTimeout(() => setProgressStep(2), 6500);
+    setTimeout(() => setProgressStep(3), 7500);
     setTimeout(() => {
       clearInterval(intervaloTimer);
       setIsExamining(false);
-    }, 12000);
+    }, 15000);
   };
 
   return (
     <div className={styles.layout}>
       {/* COLUMNA IZQUIERDA */}
       <div className={styles.chartsColumn}>
-        <button onClick={onBack} className={styles.mobileBackBtn}>
-          ← Salir
-        </button>
+        <button onClick={onBack} className={styles.mobileBackBtn}>← Salir</button>
 
         <div className={styles.chartCard}>
           <GraficoPaciente
@@ -235,14 +210,10 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
           <div>
             <h2>Maniobra</h2>
             {pacienteActual && (
-              <span className={styles.patientName}>
-                {pacienteActual.nombre}
-              </span>
+              <span className={styles.patientName}>{pacienteActual.nombre}</span>
             )}
           </div>
-          <button onClick={onBack} className={styles.backButtonOutline}>
-            Salir
-          </button>
+          <button onClick={onBack} className={styles.backButtonOutline}>Salir</button>
         </div>
 
         {patronActivo && (
@@ -251,6 +222,13 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
             <span className={styles.patronNombre}>{patronActivo.nombre}</span>
           </div>
         )}
+
+        <div className={styles.card}>
+          <span className={styles.label}>Estado de sesión</span>
+          <div style={{ fontSize: "1.1rem", marginTop: "4px" }}>
+            Maniobras aceptadas: <strong>{maniobrasGuardadas} / 3</strong>
+          </div>
+        </div>
 
         <div className={styles.card}>
           <p className={styles.instructionsText}>
@@ -280,13 +258,8 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
               { step: 2, label: "Insp. Máxima" },
               { step: 3, label: "Esp. Forzada" },
             ].map(({ step, label }) => (
-              <li
-                key={step}
-                className={progressStep >= step ? styles.stepActive : ""}
-              >
-                <div
-                  className={`${styles.checkCircle} ${progressStep >= step ? styles.checkCircleActive : ""}`}
-                >
+              <li key={step} className={progressStep >= step ? styles.stepActive : ""}>
+                <div className={`${styles.checkCircle} ${progressStep >= step ? styles.checkCircleActive : ""}`}>
                   {progressStep >= step && "✓"}
                 </div>
                 <span>{label}</span>
@@ -297,7 +270,11 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
         <button
           onClick={() =>
-            onNavigate("corregir", { datosFlujoVolumen, datosVolumenTiempo })
+            onNavigate("corregir", {
+              datosFlujoVolumen,
+              datosVolumenTiempo,
+              indices: indicesManiobra,
+            })
           }
           className={styles.nextButton}
         >

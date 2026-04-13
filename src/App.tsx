@@ -8,6 +8,7 @@ import IngresarPaciente from "./views/IngresarPaciente";
 import Maniobra from "./views/Maniobra";
 import Corregir from "./views/Corregir";
 import Interpolacion from "./views/Interpolacion";
+import Resultado from "./views/Resultado";
 
 import { readTextFile, exists, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { usePacientStore, Paciente } from "./store/pacientStore";
@@ -18,11 +19,17 @@ export type AppView =
   | "clinical"
   | "maniobra"
   | "corregir"
-  | "interpolacion";
+  | "interpolacion"
+  | "resultado"; 
 
 export interface NavigationPayload {
   datosFlujoVolumen: number[][];
   datosVolumenTiempo: number[][];
+  indices: {           // NUEVO
+    fvc: number;
+    fev1: number;
+    fev1fvc: number;
+  };
 }
 
 function App() {
@@ -103,7 +110,17 @@ function App() {
       )}
 
       {currentView === "interpolacion" && (
-        <Interpolacion onBack={() => setCurrentView("maniobra")} />
+        <Interpolacion
+          onBack={() => setCurrentView("maniobra")}
+          onNavigate={handleNavigate}
+        />
+      )}
+      // App.tsx — render:
+      {currentView === "resultado" && (
+        <Resultado
+          onBack={() => setCurrentView("interpolacion")}
+          onNavigate={handleNavigate}
+        />
       )}
     </main>
   );

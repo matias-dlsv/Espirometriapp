@@ -14,6 +14,8 @@ export interface ParametrosEspirometria {
 }
 
 export interface ManiobraGuardada {
+  id?: number; // Añadido para mejor control
+  color?: string;
   datosFlujoVolumen: number[][];
   datosVolumenTiempo: number[][];
   criterios: {
@@ -23,6 +25,11 @@ export interface ManiobraGuardada {
     pefcontinuo: boolean;
   };
   fecha: string;
+  indices?: {
+    fvc: number;
+    fev1: number;
+    fev1fvc: number;
+  }
 }
 
 export interface DatosEspirometria {
@@ -51,7 +58,6 @@ interface PacientState {
   setPacientes: (pacientes: Paciente[]) => void;
   seleccionarPaciente: (id: string) => void;
   guardarManiobra: (pacienteId: string, maniobra: ManiobraGuardada) => void;
-  // En la interfaz PacientState agrega:
   patronActivo: PatronClinico | null;
   setPatron: (patron: PatronClinico | null) => void;
 }
@@ -59,6 +65,7 @@ interface PacientState {
 export const usePacientStore = create<PacientState>((set) => ({
   pacientes: [],
   pacienteSeleccionado: null,
+  patronActivo: null,
 
   addPaciente: (paciente) =>
     set((state) => ({
@@ -75,24 +82,36 @@ export const usePacientStore = create<PacientState>((set) => ({
       pacienteSeleccionado: state.pacientes.find((p) => p.id === id) ?? null,
     })),
 
+  setPatron: (patron) => set(() => ({ patronActivo: patron })),
+
   guardarManiobra: (pacienteId, maniobra) =>
-    set((state) => ({
-      pacientes: state.pacientes.map((paciente) => {
+    set((state) => {
+      // 1. Mapeamos los pacientes para encontrar el correcto y actualizar sus maniobras
+      const nuevosPacientes = state.pacientes.map((paciente) => {
         if (paciente.id === pacienteId) {
           const espirometriasActualizadas = [...paciente.espirometrias];
 
           if (espirometriasActualizadas.length > 0) {
-            const ultimaEspiroIndex = espirometriasActualizadas.length - 1;
-            const ultimaEspiro = { ...espirometriasActualizadas[ultimaEspiroIndex] };
+            const ultimaIndex = espirometriasActualizadas.length - 1;
+            const ultimaEspiro = { ...espirometriasActualizadas[ultimaIndex] };
+
+            // Actualizamos el array de maniobras de la última espirometría
             ultimaEspiro.maniobras = [...(ultimaEspiro.maniobras || []), maniobra];
-            espirometriasActualizadas[ultimaEspiroIndex] = ultimaEspiro;
+            espirometriasActualizadas[ultimaIndex] = ultimaEspiro;
           }
 
           return { ...paciente, espirometrias: espirometriasActualizadas };
         }
         return paciente;
-      }),
-    })),
-    patronActivo: null,
-    setPatron: (patron) => set(() => ({ patronActivo: patron })),
-})); // <-- este es el único cierre del create()
+      });
+
+      // 2. Buscamos el paciente ya actualizado para refrescar la referencia de 'pacienteSeleccionado'
+      const nuevoSeleccionado = nuevosPacientes.find(p => p.id === pacienteId) || null;
+
+      // 3. Devolvemos el nuevo estado con ambas listas actualizadas
+      return {
+        pacientes: nuevosPacientes,
+        pacienteSeleccionado: nuevoSeleccionado,
+      };
+    }),
+}));

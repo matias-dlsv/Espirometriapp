@@ -49,115 +49,122 @@
   flex-shrink: 0;
   transition: color 0.2s, border-color 0.2s;
 }
-
-.backBtn:hover {
-  color: #fff;
-  border-color: #555;
-}
+.backBtn:hover { color: #fff; border-color: #555; }
 
 .content {
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 24px;
   overflow: hidden;
 }
 
-/* GRÁFICOS */
-.chartsSection {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  padding: 20px 32px;
-  flex: 1;
-  min-height: 0;
+/* BADGE MEJOR MANIOBRA */
+.mejorBadgeWrapper {
+  display: flex;
+  justify-content: center;
 }
 
-.chartWrapper {
+.mejorBadge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 2px solid;
   border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid #2a2a2a;
-  box-shadow: 0 0 0 1px #1e1e1e, 0 0 40px rgba(59, 130, 246, 0.06);
-  min-height: 0;
+  padding: 16px 32px;
+  background: rgba(255,255,255,0.02);
+}
+
+.mejorLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+}
+
+.mejorNumero {
+  font-size: 2rem;
+  font-weight: 800;
 }
 
 /* TABLA */
 .tableSection {
-  padding: 0 32px 16px 32px;
-  flex-shrink: 0;
+  width: 100%;
+  max-width: 700px;
 }
 
 .resultsTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .resultsTable th {
-  padding: 10px 20px;
+  padding: 12px 20px;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #666;
+  letter-spacing: 0.06em;
+  color: #555;
   background: #1a1a1a;
   border-bottom: 1px solid #2a2a2a;
 }
 
-.resultsTable th:first-child {
-  text-align: left;
-}
+.resultsTable th:first-child { text-align: left; }
 
 .resultsTable td {
-  padding: 14px 20px;
+  padding: 16px 20px;
   text-align: center;
   border-bottom: 1px solid #1e1e1e;
-  color: #aaa;
 }
 
-.resultsTable td:first-child {
-  text-align: left;
-}
+.resultsTable tr:hover td { background: rgba(255,255,255,0.02); }
 
-.bestRow td {
-  background: rgba(59, 130, 246, 0.04);
-}
-
-.bestRow:hover td {
-  background: rgba(59, 130, 246, 0.08);
-}
-
-.resultsTable tr:not(.bestRow):hover td {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-/* CELDA MANIOBRA */
-.maniobraCell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.colorDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.mejorBadge {
-  font-size: 0.65rem;
+.variableCell {
+  text-align: left !important;
   font-weight: 700;
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  padding: 2px 7px;
-  border-radius: 4px;
-  letter-spacing: 0.05em;
-}
-
-.best {
   color: #fff;
+  font-size: 1.05rem;
+}
+
+.realCell {
   font-weight: 700;
+  color: #fff;
+  font-size: 1.05rem;
+}
+
+.teoricoCell {
+  color: #666;
+}
+
+.porcentajeBadge {
+  display: inline-block;
+  border: 1px solid;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+/* LLN */
+.llnCol { color: #444 !important; }
+
+.llnCell { color: #333; }
+
+.llnPending {
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.llnNote {
+  font-size: 0.75rem;
+  color: #333;
+  text-align: center;
+  margin: 0;
 }
 
 /* FOOTER */
@@ -169,8 +176,8 @@
   justify-content: flex-end;
 }
 
-.finishBtn {
-  background: #3b82f6;
+.salbutamolBtn {
+  background: #10b981;
   color: white;
   border: none;
   padding: 12px 28px;
@@ -180,10 +187,7 @@
   cursor: pointer;
   transition: background 0.2s;
 }
-
-.finishBtn:hover {
-  background: #2563eb;
-}
+.salbutamolBtn:hover { background: #059669; }
 
 .empty {
   margin: auto;
@@ -192,21 +196,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
-
-.empty h2 {
-  color: #fff;
-}
-
-@media (max-width: 1100px) {
-  .chartsSection {
-    grid-template-columns: 1fr;
-    flex: none;
-    min-height: 500px;
-  }
-
-  .content {
-    overflow-y: auto;
-  }
-}
+.empty h2 { color: #fff; }
