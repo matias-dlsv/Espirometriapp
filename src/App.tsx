@@ -20,12 +20,13 @@ export type AppView =
   | "maniobra"
   | "corregir"
   | "interpolacion"
-  | "resultado"; 
+  | "resultado";
 
 export interface NavigationPayload {
   datosFlujoVolumen: number[][];
   datosVolumenTiempo: number[][];
-  indices: {           // NUEVO
+  indices: {
+    // NUEVO
     fvc: number;
     fev1: number;
     fev1fvc: number;
@@ -115,7 +116,6 @@ function App() {
           onNavigate={handleNavigate}
         />
       )}
-      // App.tsx — render:
       {currentView === "resultado" && (
         <Resultado
           onBack={() => setCurrentView("interpolacion")}

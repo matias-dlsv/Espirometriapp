@@ -10,7 +10,7 @@ interface CorregirProps {
   data: NavigationPayload | null;
 }
 
-const INICIO_EXHALACION = 24;
+const INICIO_INHALACION_PROFUNDA  = 423;
 
 export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
@@ -32,8 +32,8 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
   const fvc = parametros?.fvc.m ?? 5.241;
 
-  const datosBucles     = data?.datosFlujoVolumen.slice(0, INICIO_EXHALACION + 1) ?? [];
-  const datosExhalacion = data?.datosFlujoVolumen.slice(INICIO_EXHALACION) ?? [];
+  const datosBucles     = data?.datosFlujoVolumen.slice(0, INICIO_INHALACION_PROFUNDA + 1) ?? [];
+  const datosExhalacion = data?.datosFlujoVolumen.slice(INICIO_INHALACION_PROFUNDA) ?? [];
 
   const handleGuardarYContinuar = () => {
     if (!todosCumplen || !data || !pacienteActual) return;
