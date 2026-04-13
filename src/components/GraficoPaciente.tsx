@@ -1,47 +1,19 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import * as echarts from "echarts/core";
 import { LineChart } from "echarts/charts";
-import {
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  DatasetComponent,
-} from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-
-import type { ComposeOption } from "echarts/core";
 import type { LineSeriesOption } from "echarts/charts";
-import type {
-  TitleComponentOption,
-  TooltipComponentOption,
-  GridComponentOption,
-  DatasetComponentOption,
-} from "echarts/components";
-
-echarts.use([
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  DatasetComponent,
-  LineChart,
-  CanvasRenderer,
-]);
-
-type ECOption = ComposeOption<
-  | LineSeriesOption
-  | TitleComponentOption
-  | TooltipComponentOption
-  | GridComponentOption
-  | DatasetComponentOption
->;
+echarts.use([LineChart, CanvasRenderer]);
 
 interface GraficoProps {
   titulo?: string;
   colorLinea?: string;
+  colorSecundario?: string; // NEW: color para serie secundaria
   ejeX?: string;
   ejeY?: string;
   data?: number[][];
-  // AGREGAMOS LOS LÍMITES FIJOS AQUÍ
+  dataSecundaria?: number[][]; // NEW: serie secundaria (ej. bucles)
+  mostrarEstatico?: boolean; // NEW: muestra todo sin animar
   minX?: number;
   maxX?: number;
   minY?: number;
@@ -58,10 +30,13 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     {
       titulo,
       colorLinea = "#ef4444",
+      colorSecundario = "#94a3b8",
       ejeX = "",
       ejeY = "",
       data = [],
-      minX = 0, // Valores por defecto si no le pasas nada
+      dataSecundaria,
+      mostrarEstatico = false,
+      minX = 0,
       maxX = 10,
       minY = 0,
       maxY = 10,
@@ -72,22 +47,42 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const animationRef = useRef<number | null>(null);
 
-    const getOption = (currentData: number[][] = []): ECOption => {
+    const getOption = (
+      currentData: number[][] = [],
+      currentSecundaria?: number[][],
+    ): echarts.EChartsCoreOption => {
+      const series: LineSeriesOption[] = [];
+
+      // Serie secundaria primero (queda debajo)
+      if (currentSecundaria && currentSecundaria.length > 0) {
+        series.push({
+          data: currentSecundaria,
+          type: "line",
+          smooth: false,
+          showSymbol: false,
+          lineStyle: { width: 2, color: colorSecundario },
+          z: 1,
+        });
+      }
+
+      // Serie principal encima
+      series.push({
+        data: currentData,
+        type: "line",
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { width: 3, color: colorLinea },
+        z: 2,
+      });
+
       return {
         title: {
           text: titulo,
           left: "center",
-          // 1. Título más oscuro para que resalte en el fondo blanco
           textStyle: { color: "#333", fontSize: 14, fontWeight: "bold" },
         },
         tooltip: { trigger: "axis" },
-        grid: {
-          top: 35,
-          bottom: 15,
-          left: 25,
-          right: 25,
-          containLabel: true,
-        },
+        grid: { top: 35, bottom: 15, left: 25, right: 25, containLabel: true },
         xAxis: {
           type: "value",
           name: ejeX,
@@ -97,15 +92,13 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
           axisLine: {
             show: true,
             onZero: true,
-            // 2. Líneas de los ejes principales en un gris oscuro
             lineStyle: { color: "rgb(85, 85, 85)", width: 2 },
           },
           splitLine: {
             show: true,
-            // 3. Grilla punteada en negro semi-transparente (antes era blanco)
             lineStyle: { color: "rgba(0, 0, 0, 0.1)", type: "dashed" },
           },
-          axisLabel: { color: "#555" }, // Números en gris oscuro
+          axisLabel: { color: "#555" },
         },
         yAxis: {
           type: "value",
@@ -120,25 +113,13 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
           },
           splitLine: {
             show: true,
-            // Grilla punteada en negro semi-transparente
             lineStyle: { color: "rgba(0, 0, 0, 0.1)", type: "dashed" },
           },
-          axisLabel: { color: "#555" }, // Números en gris oscuro
+          axisLabel: { color: "#555" },
         },
-
-        // 4. ¡EL FONDO BLANCO!
         backgroundColor: "#ffffff",
-
         animation: false,
-        series: [
-          {
-            data: currentData,
-            type: "line",
-            smooth: false,
-            showSymbol: false,
-            lineStyle: { width: 3, color: colorLinea },
-          },
-        ],
+        series,
       };
     };
 
@@ -146,11 +127,16 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       if (!chartInstanceRef.current && chartRef.current) {
         chartInstanceRef.current = echarts.init(chartRef.current);
       }
-      chartInstanceRef.current?.setOption(getOption([]), true);
 
-      const handleResize = () => {
-        chartInstanceRef.current?.resize();
-      };
+      // Si es estático mostramos todo de inmediato, si no, vacío hasta que se anime
+      const dataInicial = mostrarEstatico ? data : [];
+      const secundariaInicial = mostrarEstatico ? dataSecundaria : undefined;
+      chartInstanceRef.current?.setOption(
+        getOption(dataInicial, secundariaInicial),
+        true,
+      );
+
+      const handleResize = () => chartInstanceRef.current?.resize();
       window.addEventListener("resize", handleResize);
 
       return () => {
@@ -159,13 +145,24 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
         chartInstanceRef.current?.dispose();
         chartInstanceRef.current = null;
       };
-      // Agregamos los límites a las dependencias
-    }, [titulo, colorLinea, ejeX, ejeY, minX, maxX, minY, maxY]);
+    }, [
+      titulo,
+      colorLinea,
+      colorSecundario,
+      ejeX,
+      ejeY,
+      minX,
+      maxX,
+      minY,
+      maxY,
+      mostrarEstatico,
+    ]);
 
     useImperativeHandle(
       ref,
       () => ({
         ejecutarAnimacion: () => {
+          if (mostrarEstatico) return; // no anima si es estático
           const instance = chartInstanceRef.current;
           if (!instance || !data || data.length < 2) return;
 
@@ -207,7 +204,7 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
           chartInstanceRef.current?.resize();
         },
       }),
-      [data],
+      [data, mostrarEstatico],
     );
 
     return (

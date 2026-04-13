@@ -11,11 +11,11 @@ export interface PatronClinico {
 
 // Casos clínicos predefinidos
 export const CASOS_CLINICOS: PatronClinico[] = [
-  { nombre: "Normal",              obstruccion: false, restriccion: false, tos: false },
-  { nombre: "Obstructivo",         obstruccion: true,  restriccion: false, tos: false },
-  { nombre: "Restrictivo",         obstruccion: false, restriccion: true,  tos: false },
-  { nombre: "Obstructivo + Tos",   obstruccion: true,  restriccion: false, tos: true  },
-  { nombre: "Restrictivo + Tos",   obstruccion: false, restriccion: true,  tos: true  },
+  { nombre: "Normal", obstruccion: false, restriccion: false, tos: false },
+  { nombre: "Obstructivo", obstruccion: true, restriccion: false, tos: false },
+  { nombre: "Restrictivo", obstruccion: false, restriccion: true, tos: false },
+  { nombre: "Obstructivo + Tos", obstruccion: true, restriccion: false, tos: true },
+  { nombre: "Restrictivo + Tos", obstruccion: false, restriccion: true, tos: true },
 ];
 
 // ============================================================
@@ -30,13 +30,13 @@ export const aplicarObstruccion = (
   fvc: number
 ): number[][] => {
   return curva.map(([x, y]) => {
-    // Solo afecta el tramo de exhalación forzada (x > 0, y > 0)
     if (x <= 0 || y <= 0) return [x, y];
 
-    const progreso = x / fvc; // 0 a 1 a lo largo de la exhalación
-    // Factor que crece cuadráticamente: sin efecto al inicio, fuerte al final
-    const factor = 1 - 0.45 * Math.pow(progreso, 1.5);
-    return [x, y * factor];
+    const progreso = x / fvc;
+    // Subimos de 0.45 a 0.70 y el exponente de 1.5 a 2.0
+    // — más agresivo y más curvo hacia el final
+    const factor = 1 - 0.70 * Math.pow(progreso, 2.0);
+    return [x, y * Math.max(factor, 0.05)]; // nunca llega a negativo
   });
 };
 
@@ -62,10 +62,8 @@ export const aplicarTos = (
   curva: number[][],
   fvc: number
 ): number[][] => {
-  // La tos ocurre en el tramo medio de la exhalación (30%-60% del FVC)
   const xTos = fvc * (0.3 + Math.random() * 0.3);
 
-  // Encontramos el índice más cercano al punto de tos
   let insertarEn = curva.length - 1;
   for (let i = 0; i < curva.length - 1; i++) {
     if (curva[i][0] <= xTos && curva[i + 1][0] > xTos) {
@@ -74,15 +72,19 @@ export const aplicarTos = (
     }
   }
 
-  // Interpolamos el flujo en ese punto para que el spike salga desde ahí
   const puntoBase = curva[insertarEn] ?? curva[curva.length - 1];
   const flujoBase = puntoBase[1];
 
-  // El spike sube bruscamente y vuelve
-  const spikePico: number[] = [xTos - 0.05, flujoBase + 2.5];
-  const spikeCima: number[] = [xTos,         flujoBase + 4.0];
-  const spikeBajada: number[] = [xTos + 0.05, flujoBase + 1.0];
-  const spikeRetorno: number[] = [xTos + 0.1,  flujoBase];
+  // Spike proporcional al flujo en ese momento en vez de valores fijos
+  // Una tos realista sube ~40-60% sobre el flujo local
+  const alturaPico  = flujoBase * 0.5;
+  const alturaCima  = flujoBase * 0.7;
+  const alturaBajada = flujoBase * 0.25;
+
+  const spikePico:    number[] = [xTos - 0.05, flujoBase + alturaPico];
+  const spikeCima:    number[] = [xTos,         flujoBase + alturaCima];
+  const spikeBajada:  number[] = [xTos + 0.05,  flujoBase + alturaBajada];
+  const spikeRetorno: number[] = [xTos + 0.1,   flujoBase];
 
   const resultado = [...curva];
   resultado.splice(insertarEn, 0, spikePico, spikeCima, spikeBajada, spikeRetorno);
@@ -105,6 +107,6 @@ export const aplicarPatron = (
   let resultado = curva;
   if (patron.obstruccion) resultado = aplicarObstruccion(resultado, fvc);
   if (patron.restriccion) resultado = aplicarRestriccion(resultado);
-  if (patron.tos)         resultado = aplicarTos(resultado, fvc);
+  if (patron.tos) resultado = aplicarTos(resultado, fvc);
   return resultado;
 };
