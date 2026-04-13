@@ -33,35 +33,103 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     const peakFlujo = fev1 * (1.45 + Math.random() * 0.15);
     const peakVol = fvc * (0.13 + Math.random() * 0.05);
 
+    const cx = fvc * 0.55;
+    const rx = fvc * 0.12;
+    const ry = 0.6;
+    const casiFvc = fvc * 0.96;
+    const multiplicadorRuido = 0.6; // Control maestro de temblor
+
+    // 1. GENERADOR DE ELIPSES "ORGÁNICAS" (Más ovaladas e irregulares)
+    const generarElipseOrganica = (
+      centroX: number,
+      radioX: number,
+      radioY: number,
+      puntos = 50,
+    ): number[][] => {
+      const elipse: number[][] = [];
+      for (let i = 0; i <= puntos; i++) {
+        const theta = (i / puntos) * 2 * Math.PI;
+
+        // Usamos Math.pow para que la curva sea menos "redonda" y más "ovalada/achatada"
+        // Un exponente > 1 la hace más puntiaguda, < 1 más rectangular.
+        const factorForma = Math.sin(theta) > 0 ? 0.9 : 1.2;
+
+        const rXActual = perturbar(radioX, 0.02 * multiplicadorRuido);
+        const rYActual = perturbar(radioY, 0.05 * multiplicadorRuido);
+
+        const x = centroX + rXActual * Math.cos(theta);
+        // Aplicamos el factor de forma al eje Y (Flujo)
+        const y =
+          -rYActual *
+          Math.sign(Math.sin(theta)) *
+          Math.pow(Math.abs(Math.sin(theta)), factorForma);
+
+        elipse.push([
+          perturbar(x, 0.005 * multiplicadorRuido),
+          perturbar(y, 0.02 * multiplicadorRuido),
+        ]);
+      }
+      return elipse;
+    };
+
+    const bucle1 = generarElipseOrganica(cx, rx, ry);
+    const bucle2 = generarElipseOrganica(cx, rx, ry * 1.05);
+
+    // 2. BUCLE 3 INHALACIÓN (Menos constante)
+    const bucle3Inhalacion: number[][] = [];
+    for (let i = 0; i <= 30; i++) {
+      const theta = (i / 30) * Math.PI;
+      const x = cx + perturbar(rx, 0.02 * multiplicadorRuido) * Math.cos(theta);
+      // Alteramos la curva para que no sea un arco constante
+      const y =
+        -perturbar(ry * 1.1, 0.08 * multiplicadorRuido) *
+        Math.pow(Math.sin(theta), 0.8);
+      bucle3Inhalacion.push([perturbar(x, 0.005), y]);
+    }
+
+    // 3. EXHALACIÓN EXTENDIDA (Mantiene el estiramiento hacia casiFvc)
+    const bucle3Exhalacion: number[][] = [];
+    const cx_exh = (cx - rx + casiFvc) / 2;
+    const rx_exh = (casiFvc - (cx - rx)) / 2;
+    for (let i = 1; i <= 40; i++) {
+      const theta = Math.PI + (i / 40) * Math.PI;
+      const x = cx_exh + rx_exh * Math.cos(theta);
+      const y =
+        -perturbar(ry * 1.3, 0.1 * multiplicadorRuido) * Math.sin(theta);
+      bucle3Exhalacion.push([perturbar(x, 0.005), y]);
+    }
+
+    // 4. INSPIRACIÓN PROFUNDA MÁXIMA (Asimétrica y Ovalada)
+    // Es la curva grande antes del soplido fuerte
+    const inspiracionProfunda: number[][] = [];
+    const cx_insp = casiFvc / 2;
+    for (let i = 1; i <= 60; i++) {
+      const t = i / 60;
+      const theta = t * Math.PI;
+
+      // Movimiento en X
+      const x = cx_insp + cx_insp * Math.cos(theta);
+
+      // FORMA ASIMÉTRICA:
+      // Usamos una función que hace que la curva caiga rápido y suba más lento
+      // 'y' no es un seno puro, sino uno modificado por la posición 't'
+      const flujoBase = -2.0 * Math.sin(theta);
+      const deformacionAsimetrica = 1 + 0.3 * Math.sin(theta * 0.5); // Desplaza el pico
+      const y = flujoBase * deformacionAsimetrica;
+
+      inspiracionProfunda.push([
+        perturbar(x, 0.005),
+        perturbar(y, 0.03 * multiplicadorRuido),
+      ]);
+    }
+
+    // --- EL RESTO SE MANTIENE IGUAL ---
     const flujoVolumen: number[][] = [
-      // --- Bucle 1 ---
-      [0, 0],
-      [perturbar(0.1, 0.1), perturbar(0.2, 0.1)],
-      [perturbar(0.2, 0.1), perturbar(0.3, 0.1)],
-      [perturbar(0.3, 0.1), perturbar(0.2, 0.1)],
-      [perturbar(0.4, 0.1), 0],
-      [perturbar(0.3, 0.1), perturbar(-0.2, 0.1)],
-      [perturbar(0.2, 0.1), perturbar(-0.3, 0.1)],
-      [0, 0],
-      // --- Bucle 2 ---
-      [perturbar(0.125, 0.1), perturbar(0.3, 0.1)],
-      [perturbar(0.25, 0.1), perturbar(0.4, 0.1)],
-      [perturbar(0.375, 0.1), perturbar(0.3, 0.1)],
-      [perturbar(0.5, 0.1), 0],
-      [perturbar(0.375, 0.1), perturbar(-0.3, 0.1)],
-      [perturbar(0.25, 0.1), perturbar(-0.4, 0.1)],
-      [perturbar(0.125, 0.1), perturbar(-0.3, 0.1)],
-      [0, 0],
-      // --- Bucle 3 ---
-      [perturbar(0.15, 0.1), perturbar(0.4, 0.1)],
-      [perturbar(0.3, 0.1), perturbar(0.5, 0.1)],
-      [perturbar(0.45, 0.1), perturbar(0.4, 0.1)],
-      [perturbar(0.6, 0.1), 0],
-      [perturbar(0.45, 0.1), perturbar(-0.4, 0.1)],
-      [perturbar(0.3, 0.1), perturbar(-0.5, 0.1)],
-      [perturbar(0.15, 0.1), perturbar(-0.4, 0.1)],
-      [0, 0],
-      // --- Exhalación Forzada ---
+      ...bucle1,
+      ...bucle2,
+      ...bucle3Inhalacion,
+      ...bucle3Exhalacion,
+      ...inspiracionProfunda,
       [0, 0],
       [peakVol, peakFlujo],
       [fvc * 0.21, perturbar(fev1 * 1.38, 0.01)],
@@ -84,31 +152,6 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     ];
 
     const volumenTiempo: number[][] = [
-      [0, 1],
-      [0.15, 1.2],
-      [0.3, 1.3],
-      [0.45, 1.4],
-      [0.6, 1.3],
-      [0.75, 1.2],
-      [0.9, 1.1],
-      [1.0, 1],
-      [1.15, 1.15],
-      [1.3, 1.3],
-      [1.45, 1.45],
-      [1.6, 1.5],
-      [1.75, 1.4],
-      [1.9, 1.25],
-      [2.05, 1.1],
-      [2.2, 1],
-      [2.3, 0.9],
-      [2.4, 0.8],
-      [2.6, 1.1],
-      [2.8, 0.8],
-      [3.0, 0.5],
-      [3.2, 0.2],
-      [3.4, 0.05],
-      [3.5, 0],
-      [3.5, 0],
       [3.6, fev1 * 0.25],
       [3.7, fev1 * 0.5],
       [3.9, fev1 * 0.75],
@@ -136,7 +179,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       datosFlujoVolumen: flujoVolumenFinal,
       datosVolumenTiempo: volumenTiempo,
     };
-  }, [patronActivo]); // recalcula si cambia el patrón
+  }, [fev1, fvc, patronActivo]);
 
   const iniciar = () => {
     if (isExamining) return;

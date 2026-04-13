@@ -1,8 +1,8 @@
+import { useState } from "react";
 import styles from "./Corregir.module.css";
 import GraficoPaciente from "../components/GraficoPaciente";
 import { AppView, NavigationPayload } from "../App";
 import { usePacientStore } from "../store/pacientStore";
-import { useState } from "react";
 
 interface CorregirProps {
   onBack: () => void;
@@ -10,12 +10,12 @@ interface CorregirProps {
   data: NavigationPayload | null;
 }
 
-// El índice donde empieza la exhalación forzada en datosFlujoVolumen
+// Índice donde termina el bucle 3 y empieza la exhalación forzada
 const INICIO_EXHALACION = 24;
 
 export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
-  const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
-  const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
+  const guardarManiobra  = usePacientStore((state) => state.guardarManiobra);
+  const pacienteActual   = usePacientStore((state) => state.pacienteSeleccionado);
 
   const [criterios, setCriterios] = useState({
     vtestables: false,
@@ -33,14 +33,15 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
   const fvc = parametros?.fvc.m ?? 5.241;
 
-  // Separamos bucles de exhalación forzada para colorearlos distinto
-  const datosBucles =
-    data?.datosFlujoVolumen.slice(0, INICIO_EXHALACION + 1) ?? [];
-  const datosExhalacion =
-    data?.datosFlujoVolumen.slice(INICIO_EXHALACION) ?? [];
+  // Separamos bucles (gris) de exhalación forzada (azul)
+  const datosBucles     = data?.datosFlujoVolumen.slice(0, INICIO_EXHALACION + 1) ?? [];
+  const datosExhalacion = data?.datosFlujoVolumen.slice(INICIO_EXHALACION) ?? [];
 
   const handleGuardarYContinuar = () => {
     if (!todosCumplen || !data || !pacienteActual) return;
+
+    // Leemos la cantidad ANTES de guardar — el store aún no se actualizó
+    const cantidadAntes = pacienteActual.espirometrias[0]?.maniobras?.length ?? 0;
 
     const nuevaManiobra = {
       datosFlujoVolumen: data.datosFlujoVolumen,
@@ -51,11 +52,11 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
 
     guardarManiobra(pacienteActual.id, nuevaManiobra);
 
-    const cantidadActual =
-      (pacienteActual.espirometrias[0]?.maniobras?.length || 0) + 1;
+    // Ahora sí calculamos cuántas hay tras guardar
+    const cantidadDespues = cantidadAntes + 1;
 
     if (onNavigate) {
-      if (cantidadActual >= 3) {
+      if (cantidadDespues >= 3) {
         onNavigate("interpolacion");
       } else {
         onNavigate("maniobra");
@@ -66,10 +67,7 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   if (!data) {
     return (
       <div className={styles.layout}>
-        <div
-          className={styles.card}
-          style={{ margin: "auto", textAlign: "center" }}
-        >
+        <div className={styles.card} style={{ margin: "auto", textAlign: "center" }}>
           <h2>No hay datos de maniobra disponibles</h2>
           <p>Debe realizar una maniobra primero para poder evaluarla.</p>
           <button onClick={onBack} className={styles.mainActionButton}>
@@ -84,9 +82,7 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
     <div className={styles.layout}>
       {/* COLUMNA IZQUIERDA */}
       <div className={styles.chartsColumn}>
-        <button onClick={onBack} className={styles.mobileBackBtn}>
-          ← Volver
-        </button>
+        <button onClick={onBack} className={styles.mobileBackBtn}>← Volver</button>
 
         {/* GRÁFICO 1: Flujo/Volumen — bucles en gris, exhalación en azul */}
         <div className={styles.chartCard}>
@@ -129,9 +125,7 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <div>
             <h2>Revisión</h2>
             {pacienteActual && (
-              <span className={styles.patientName}>
-                {pacienteActual.nombre}
-              </span>
+              <span className={styles.patientName}>{pacienteActual.nombre}</span>
             )}
           </div>
           <button onClick={onBack} className={styles.backButtonOutline}>
@@ -149,24 +143,16 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <span className={styles.label}>Criterios de Aceptabilidad</span>
           <div className={styles.checkList}>
             {[
-              { key: "vtestables", label: "3 Vt estables" },
-              { key: "esfuerzomaximo", label: "Esfuerzo máximo" },
-              {
-                key: "volumenextrapolado",
-                label: "Volumen extrapolado < 100 ml",
-              },
-              {
-                key: "pefcontinuo",
-                label: "PEF continuo y libre de artefactos",
-              },
+              { key: "vtestables",         label: "3 Vt estables" },
+              { key: "esfuerzomaximo",     label: "Esfuerzo máximo" },
+              { key: "volumenextrapolado", label: "Volumen extrapolado < 100 ml" },
+              { key: "pefcontinuo",        label: "PEF continuo y libre de artefactos" },
             ].map(({ key, label }) => (
               <label key={key} className={styles.checkItem}>
                 <input
                   type="checkbox"
                   checked={criterios[key as keyof typeof criterios]}
-                  onChange={() =>
-                    handleToggleCriterio(key as keyof typeof criterios)
-                  }
+                  onChange={() => handleToggleCriterio(key as keyof typeof criterios)}
                 />
                 {label}
               </label>

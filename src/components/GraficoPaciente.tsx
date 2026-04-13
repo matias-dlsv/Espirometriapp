@@ -1,19 +1,33 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import * as echarts from "echarts/core";
 import { LineChart } from "echarts/charts";
+import {
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  DatasetComponent,
+} from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { LineSeriesOption } from "echarts/charts";
-echarts.use([LineChart, CanvasRenderer]);
+
+echarts.use([
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  DatasetComponent,
+  LineChart,
+  CanvasRenderer,
+]);
 
 interface GraficoProps {
   titulo?: string;
   colorLinea?: string;
-  colorSecundario?: string; // NEW: color para serie secundaria
+  colorSecundario?: string;
   ejeX?: string;
   ejeY?: string;
   data?: number[][];
-  dataSecundaria?: number[][]; // NEW: serie secundaria (ej. bucles)
-  mostrarEstatico?: boolean; // NEW: muestra todo sin animar
+  dataSecundaria?: number[][];
+  mostrarEstatico?: boolean;
   minX?: number;
   maxX?: number;
   minY?: number;
@@ -53,7 +67,6 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     ): echarts.EChartsCoreOption => {
       const series: LineSeriesOption[] = [];
 
-      // Serie secundaria primero (queda debajo)
       if (currentSecundaria && currentSecundaria.length > 0) {
         series.push({
           data: currentSecundaria,
@@ -65,7 +78,6 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
         });
       }
 
-      // Serie principal encima
       series.push({
         data: currentData,
         type: "line",
@@ -128,7 +140,6 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
         chartInstanceRef.current = echarts.init(chartRef.current);
       }
 
-      // Si es estático mostramos todo de inmediato, si no, vacío hasta que se anime
       const dataInicial = mostrarEstatico ? data : [];
       const secundariaInicial = mostrarEstatico ? dataSecundaria : undefined;
       chartInstanceRef.current?.setOption(
@@ -156,13 +167,15 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       minY,
       maxY,
       mostrarEstatico,
+      data,          // CLAVE: actualiza el gráfico si cambian los datos
+      dataSecundaria,
     ]);
 
     useImperativeHandle(
       ref,
       () => ({
         ejecutarAnimacion: () => {
-          if (mostrarEstatico) return; // no anima si es estático
+          if (mostrarEstatico) return;
           const instance = chartInstanceRef.current;
           if (!instance || !data || data.length < 2) return;
 
@@ -208,19 +221,8 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     );
 
     return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <div
-          ref={chartRef}
-          style={{ width: "100%", height: "100%", minHeight: "200px" }}
-        />
+      <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div ref={chartRef} style={{ width: "100%", height: "100%", minHeight: "200px" }} />
       </div>
     );
   },
