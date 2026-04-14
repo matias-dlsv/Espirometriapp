@@ -11,15 +11,24 @@ interface InterpolacionProps {
 
 const COLORES = ["#3b82f6", "#10b981", "#f59e0b"];
 
-export default function Interpolacion({ onBack, onNavigate }: InterpolacionProps) {
+export default function Interpolacion({
+  onBack,
+  onNavigate,
+}: InterpolacionProps) {
   const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
-  const patronActivo   = usePacientStore((state) => state.patronActivo);
+  const patronActivo = usePacientStore((state) => state.patronActivo);
 
-  const maniobrasGuardadas = pacienteActual?.espirometrias?.[0]?.maniobras ?? [];
-  const parametros         = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
+  const faseActual = usePacientStore((state) => state.faseActual);
 
-  const fvc     = parametros?.fvc.m     ?? 0;
-  const fev1    = parametros?.fev1.m    ?? 0;
+  // Cambia esta línea:
+  const maniobrasGuardadas =
+    faseActual === "pre"
+      ? (pacienteActual?.espirometrias?.[0]?.maniobras ?? [])
+      : (pacienteActual?.espirometrias?.[0]?.maniobrasPost ?? []);
+  const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
+
+  const fvc = parametros?.fvc.m ?? 0;
+  const fev1 = parametros?.fev1.m ?? 0;
   const fev1fvc = parametros?.fev1fvc.m ?? 0;
 
   const maniobras = useMemo(() => {
@@ -37,7 +46,7 @@ export default function Interpolacion({ onBack, onNavigate }: InterpolacionProps
   const mejorManiobraId = useMemo(() => {
     if (maniobras.length === 0) return null;
     const perfecta = maniobras.find((m) =>
-      Object.values(m.criterios).every(Boolean)
+      Object.values(m.criterios).every(Boolean),
     );
     return perfecta?.id ?? maniobras[0].id;
   }, [maniobras]);
@@ -48,7 +57,9 @@ export default function Interpolacion({ onBack, onNavigate }: InterpolacionProps
         <div className={styles.empty}>
           <h2>No hay maniobras guardadas</h2>
           <p>Debes completar al menos una maniobra aceptable.</p>
-          <button onClick={onBack} className={styles.finishBtn}>Volver</button>
+          <button onClick={onBack} className={styles.finishBtn}>
+            Volver
+          </button>
         </div>
       </div>
     );
@@ -58,9 +69,15 @@ export default function Interpolacion({ onBack, onNavigate }: InterpolacionProps
     <div className={styles.container}>
       {/* HEADER */}
       <header className={styles.header}>
-        <button onClick={onBack} className={styles.backBtn}>← Volver</button>
+        <button onClick={onBack} className={styles.backBtn}>
+          ← Volver
+        </button>
         <div>
-          <h1>Comparativa de Maniobras</h1>
+          <h1>
+            {faseActual === "post"
+              ? "Comparativa Post-BD"
+              : "Comparativa de Maniobras"}
+          </h1>
           {pacienteActual && (
             <span className={styles.patientName}>{pacienteActual.nombre}</span>
           )}
@@ -156,10 +173,13 @@ export default function Interpolacion({ onBack, onNavigate }: InterpolacionProps
       </main>
 
       <footer className={styles.footer}>
-  <button className={styles.finishBtn} onClick={() => onNavigate("resultado")}>
-    Siguiente →
-  </button>
-</footer>
+        <button
+          className={styles.finishBtn}
+          onClick={() => onNavigate("resultado")}
+        >
+          Siguiente →
+        </button>
+      </footer>
     </div>
   );
 }

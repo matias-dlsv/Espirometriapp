@@ -1,6 +1,6 @@
 import styles from "./Resultado.module.css";
 import { AppView, NavigationPayload } from "../App";
-import { usePacientStore } from "../store/pacientStore";
+import { usePacientStore, ManiobraGuardada } from "../store/pacientStore";
 import { useMemo } from "react";
 
 interface ResultadoProps {
@@ -10,56 +10,84 @@ interface ResultadoProps {
 
 const COLORES = ["#3b82f6", "#10b981", "#f59e0b"];
 
+const encontrarMejor = (
+  maniobras: ManiobraGuardada[],
+): ManiobraGuardada | null => {
+  if (maniobras.length === 0) return null;
+  const perfecta = maniobras.find(
+    (m) => m.criterios && Object.values(m.criterios).every(Boolean),
+  );
+  return perfecta ?? maniobras[0];
+};
+
 export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
   const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
   const patronActivo = usePacientStore((state) => state.patronActivo);
+  const faseActual = usePacientStore((state) => state.faseActual);
+  const setFase = usePacientStore((state) => state.setFase);
 
-  const maniobrasGuardadas =
-    pacienteActual?.espirometrias?.[0]?.maniobras ?? [];
+  const maniobrasPreRaw = pacienteActual?.espirometrias?.[0]?.maniobras ?? [];
+  const maniobrasPostRaw =
+    pacienteActual?.espirometrias?.[0]?.maniobrasPost ?? [];
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
 
   const fvcTeorico = parametros?.fvc.m ?? 0;
   const fev1Teorico = parametros?.fev1.m ?? 0;
   const fev1fvcTeorico = parametros?.fev1fvc.m ?? 0;
 
-  // Encontramos la mejor maniobra — la que cumple todos los criterios
-  // Si ninguna es perfecta, la primera
-  const mejorManiobra = useMemo(() => {
-    if (maniobrasGuardadas.length === 0) return null;
-    const perfecta = maniobrasGuardadas.find(
-      (m) => m.criterios && Object.values(m.criterios).every(Boolean),
-    );
-    return perfecta ?? maniobrasGuardadas[0];
-  }, [maniobrasGuardadas]);
+  const mejorPre = useMemo(
+    () => encontrarMejor(maniobrasPreRaw),
+    [maniobrasPreRaw],
+  );
+  const mejorPost = useMemo(
+    () => encontrarMejor(maniobrasPostRaw),
+    [maniobrasPostRaw],
+  );
 
-  const mejorIndice = maniobrasGuardadas.indexOf(mejorManiobra!);
-  const colorMejor = COLORES[mejorIndice % COLORES.length];
+  // La maniobra a mostrar depende de la fase actual
+  const mejorActual = faseActual === "pre" ? mejorPre : mejorPost;
+  const indiceActual =
+    faseActual === "pre"
+      ? maniobrasPreRaw.indexOf(mejorPre!)
+      : maniobrasPostRaw.indexOf(mejorPost!);
+  const colorMejor = COLORES[indiceActual % COLORES.length];
 
-  const filas = mejorManiobra
+  const hayPost = maniobrasPostRaw.length > 0 && mejorPost;
+
+  const filas = mejorActual
     ? [
         {
           variable: "FVC",
           unidad: "L",
-          real: mejorManiobra.indices?.fvc ?? fvcTeorico,
+          real: mejorActual.indices?.fvc ?? fvcTeorico,
+          realPost: mejorPost?.indices?.fvc,
           teorico: fvcTeorico,
         },
         {
           variable: "FEV1",
           unidad: "L",
-          real: mejorManiobra.indices?.fev1 ?? fev1Teorico,
+          real: mejorActual.indices?.fev1 ?? fev1Teorico,
+          realPost: mejorPost?.indices?.fev1,
           teorico: fev1Teorico,
         },
         {
           variable: "FEV1/FVC",
           unidad: "%",
-          real: mejorManiobra.indices?.fev1fvc ?? fev1fvcTeorico,
+          real: mejorActual.indices?.fev1fvc ?? fev1fvcTeorico,
+          realPost: mejorPost?.indices?.fev1fvc,
           teorico: fev1fvcTeorico,
-          esRatio: true, // para formatear distinto
+          esRatio: true,
         },
       ]
     : [];
 
-  if (!mejorManiobra) {
+  const formatear = (val: number, esRatio?: boolean, unidad?: string) =>
+    esRatio ? `${(val * 100).toFixed(1)}%` : `${val.toFixed(2)} ${unidad}`;
+
+  const colorPct = (pct: number) =>
+    pct >= 80 ? "#10b981" : pct >= 70 ? "#f59e0b" : "#ef4444";
+
+  if (!mejorActual) {
     return (
       <div className={styles.container}>
         <div className={styles.empty}>
@@ -74,13 +102,17 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
 
   return (
     <div className={styles.container}>
-      {/* HEADER */}
       <header className={styles.header}>
         <button onClick={onBack} className={styles.backBtn}>
           ← Volver
         </button>
         <div>
-          <h1>Resultado Final</h1>
+          <h1>
+            Resultado{" "}
+            {faseActual === "post"
+              ? "Post-Broncodilatador"
+              : "Pre-Broncodilatador"}
+          </h1>
           {pacienteActual && (
             <span className={styles.patientName}>{pacienteActual.nombre}</span>
           )}
@@ -90,9 +122,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
         </div>
       </header>
 
-      {/* CONTENIDO */}
       <main className={styles.content}>
-        {/* BADGE MEJOR MANIOBRA */}
         <div className={styles.mejorBadgeWrapper}>
           <div
             className={styles.mejorBadge}
@@ -100,62 +130,82 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
           >
             <span className={styles.mejorLabel}>Mejor maniobra</span>
             <span className={styles.mejorNumero} style={{ color: colorMejor }}>
-              M{mejorIndice + 1}
+              M{indiceActual + 1}
             </span>
           </div>
         </div>
 
-        {/* TABLA */}
         <section className={styles.tableSection}>
           <table className={styles.resultsTable}>
             <thead>
               <tr>
                 <th>Variable</th>
-                <th>Real</th>
+                <th>Pre-BD</th>
+                {hayPost && <th>Post-BD</th>}
                 <th>Teórico</th>
-                <th>% Teórico</th>
+                <th>% Pre</th>
+                {hayPost && <th>% Post</th>}
                 <th className={styles.llnCol}>LLN</th>
               </tr>
             </thead>
             <tbody>
-              {filas.map(({ variable, unidad, real, teorico, esRatio }) => {
-                const porcentaje = teorico > 0 ? (real / teorico) * 100 : 0;
-                const realFormateado = esRatio
-                  ? `${(real * 100).toFixed(1)}%`
-                  : `${real.toFixed(2)} ${unidad}`;
-                const teoricoFormateado = esRatio
-                  ? `${(teorico * 100).toFixed(1)}%`
-                  : `${teorico.toFixed(2)} ${unidad}`;
+              {filas.map(
+                ({ variable, unidad, real, realPost, teorico, esRatio }) => {
+                  const pctPre = teorico > 0 ? (real / teorico) * 100 : 0;
+                  const pctPost =
+                    realPost && teorico > 0 ? (realPost / teorico) * 100 : null;
 
-                const colorPorcentaje =
-                  porcentaje >= 80
-                    ? "#10b981"
-                    : porcentaje >= 70
-                      ? "#f59e0b"
-                      : "#ef4444";
-
-                return (
-                  <tr key={variable}>
-                    <td className={styles.variableCell}>{variable}</td>
-                    <td className={styles.realCell}>{realFormateado}</td>
-                    <td className={styles.teoricoCell}>{teoricoFormateado}</td>
-                    <td>
-                      <span
-                        className={styles.porcentajeBadge}
-                        style={{
-                          color: colorPorcentaje,
-                          borderColor: colorPorcentaje,
-                        }}
-                      >
-                        {porcentaje.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className={styles.llnCell}>
-                      <span className={styles.llnPending}>—</span>
-                    </td>
-                  </tr>
-                );
-              })}
+                  return (
+                    <tr key={variable}>
+                      <td className={styles.variableCell}>{variable}</td>
+                      <td className={styles.realCell}>
+                        {formatear(real, esRatio, unidad)}
+                      </td>
+                      {hayPost && (
+                        <td className={styles.postCell}>
+                          {realPost
+                            ? formatear(realPost, esRatio, unidad)
+                            : "—"}
+                        </td>
+                      )}
+                      <td className={styles.teoricoCell}>
+                        {formatear(teorico, esRatio, unidad)}
+                      </td>
+                      <td>
+                        <span
+                          className={styles.porcentajeBadge}
+                          style={{
+                            color: colorPct(pctPre),
+                            borderColor: colorPct(pctPre),
+                          }}
+                        >
+                          {pctPre.toFixed(1)}%
+                        </span>
+                      </td>
+                      {hayPost && (
+                        <td>
+                          {pctPost !== null ? (
+                            <span
+                              className={styles.porcentajeBadge}
+                              style={{
+                                color: colorPct(pctPost),
+                                borderColor: colorPct(pctPost),
+                              }}
+                            >
+                              {pctPost.toFixed(1)}%
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      )}
+                      <td className={styles.llnCell}>
+                        <span className={styles.llnPending}>—</span>
+                      </td>
+                    </tr>
+                  );
+                },
+              )}
             </tbody>
           </table>
         </section>
@@ -166,16 +216,24 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
         </p>
       </main>
 
-      {/* FOOTER */}
       <footer className={styles.footer}>
+        {/* Salbutamol solo aparece si aún no hay fase post */}
+        {faseActual === "pre" && (
+          <button
+            className={styles.salbutamolBtn}
+            onClick={() => {
+              setFase("post");
+              onNavigate("maniobra");
+            }}
+          >
+            Salbutamol →
+          </button>
+        )}
         <button
-          className={styles.salbutamolBtn}
-          onClick={() => onNavigate("maniobra")}
-        >
-          Salbutamol →
-        </button>
-        <button
-          onClick={() => onNavigate?.("welcome")}
+          onClick={() => {
+            setFase("pre"); // reset para próxima sesión
+            onNavigate("welcome");
+          }}
           className={styles.finalizarBtn}
         >
           Finalizar

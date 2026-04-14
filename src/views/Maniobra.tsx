@@ -3,9 +3,10 @@ import styles from "./Maniobra.module.css";
 import GraficoPaciente, { GraficoRef } from "../components/GraficoPaciente";
 import { usePacientStore } from "../store/pacientStore";
 import { AppView, NavigationPayload } from "../App";
+// Cambia el import:
 import {
   aplicarPatron,
-  calcularIndicesManiobra,
+  generarIndicesAleatorios,
 } from "../utils/transformaciones";
 
 interface ManiobraProps {
@@ -37,14 +38,22 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
   const { datosFlujoVolumen, datosVolumenTiempo, indicesManiobra } =
     useMemo(() => {
-      // Peak al inicio del useMemo para que calcularIndicesManiobra lo use
-      const peakFlujo = fev1 * (1.45 + Math.random() * 0.15);
-      const peakVol = fvc * (0.13 + Math.random() * 0.05);
+      // 1. Primero generamos los índices aleatorios de esta maniobra
+      const indicesManiobra = generarIndicesAleatorios(fvc, fev1);
 
-      const cx = fvc * 0.55;
-      const rx = fvc * 0.12;
+      // 2. La curva usa los índices reales, no los teóricos
+      const fvcM = indicesManiobra.fvc;
+      const fev1M = indicesManiobra.fev1;
+
+      // 3. peakFlujo derivado del fev1 real de esta maniobra
+      const peakFlujo = fev1M * (1.45 + Math.random() * 0.15);
+      const peakVol = fvcM * (0.13 + Math.random() * 0.05);
+
+      // 4. Todo lo demás usa fvcM y fev1M en vez de fvc y fev1
+      const cx = fvcM * 0.55;
+      const rx = fvcM * 0.12;
       const ry = 0.6;
-      const casiFvc = fvc * 0.96;
+      const casiFvc = fvcM * 0.96;
       const multiplicadorRuido = 0.6;
 
       // 1. ELIPSES
@@ -133,7 +142,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       for (let i = 1; i <= puntosRampa; i++) {
         const t = i / puntosRampa;
         const curveT = Math.pow(t, 0.7);
-        const vol = peakVol + (fvc - peakVol) * curveT;
+        const vol = peakVol + (fvcM - peakVol) * curveT;
         const flujo = peakFlujo * Math.pow(1 - curveT, 1.5);
         exhalacionForzada.push([perturbar(vol, 0.002), perturbar(flujo, 0.01)]);
       }
@@ -148,34 +157,35 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       ];
 
       const volumenTiempo: number[][] = [
-        // Respiración normal (3 bucles)
-        // Inhalación profunda hasta casi 0
-        [3.5, 0],
-        // Exhalación forzada
-        [3.6, fev1 * 0.25],
-        [3.7, fev1 * 0.5],
-        [3.9, fev1 * 0.75],
-        [4.1, fev1 * 0.9],
-        [4.5, fev1],
-        [5.0, fvc * 0.88],
-        [5.5, fvc * 0.9],
-        [6.0, fvc * 0.91],
-        [6.5, fvc * 0.92],
-        [7.0, fvc * 0.93],
-        [7.5, fvc * 0.94],
-        [8.0, fvc * 0.95],
-        [8.5, fvc * 0.96],
-        [9.0, fvc * 0.97],
-        [9.5, fvc * 0.98],
-        [10.0, fvc * 0.985],
-        [10.5, fvc * 0.99],
-        [10.8, fvc * 0.995],
-        [11.0, fvc],
+        [0, 0],
+        [0.1, fvcM * 0.08],
+        [0.2, fvcM * 0.18],
+        [0.3, fvcM * 0.3],
+        [0.4, fvcM * 0.42],
+        [0.5, fvcM * 0.52],
+        [0.6, fvcM * 0.61],
+        [0.7, fvcM * 0.68],
+        [0.8, fvcM * 0.74],
+        [0.9, fvcM * 0.79],
+        [1.0, fvcM * 0.83],
+        [1.2, fvcM * 0.88],
+        [1.5, fvcM * 0.91],
+        [2.0, fvcM * 0.94],
+        [2.5, fvcM * 0.96],
+        [3.0, fvcM * 0.972],
+        [4.0, fvcM * 0.981],
+        [5.0, fvcM * 0.988],
+        [6.0, fvcM * 0.992],
+        [7.0, fvcM * 0.995],
+        [8.0, fvcM * 0.997],
+        [9.0, fvcM * 0.998],
+        [10.0, fvcM * 0.999],
+        [11.0, fvcM],
       ];
-      const flujoVolumenFinal = aplicarPatron(flujoVolumen, fvc, patronActivo);
+      const flujoVolumenFinal = aplicarPatron(flujoVolumen, fvcM, patronActivo);
 
       // Índices correlacionados con el peak real de esta maniobra
-      const indicesManiobra = calcularIndicesManiobra(fvc, fev1, peakFlujo);
+      //const indicesManiobra = calcularIndicesManiobra(fvc, fev1, peakFlujo);
 
       return {
         datosFlujoVolumen: flujoVolumenFinal,

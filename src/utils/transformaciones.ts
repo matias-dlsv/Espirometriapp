@@ -114,26 +114,17 @@ export const aplicarPatron = (
 // Calcula índices con variación correlacionada al peak real de la maniobra.
 // Si el peak fue más alto que el esperado, FEV1 sube proporcionalmente.
 // FVC también sube pero menos. FEV1/FVC se deriva de ambos.
-export const calcularIndicesManiobra = (
+// Elimina calcularIndicesManiobra y pon esto en su lugar:
+
+// Genera índices con variación realista (±3%) sobre los teóricos.
+// Estos índices luego se usan para construir la curva.
+export const generarIndicesAleatorios = (
   fvcTeorico: number,
   fev1Teorico: number,
-  peakFlujo: number,
 ): { fvc: number; fev1: number; fev1fvc: number } => {
-  // El peak esperado es fev1 * 1.45 (punto medio del rango de peakFlujo)
-  const peakEsperado = fev1Teorico * 1.525;
-  // Cuánto se desvió el peak real del esperado (positivo = más fuerte)
-  const correlacion = (peakFlujo / peakEsperado) - 1; // aprox -0.05 a +0.05
-
-  // FEV1: fuerte correlación con el peak + ruido pequeño independiente
-  const deltaFev1 = correlacion * 0.6 + (Math.random() * 0.04 - 0.02);
+  const deltaFvc  = Math.random() * 0.06 - 0.03; // ±3%
+  const deltaFev1 = Math.random() * 0.06 - 0.03; // ±3%
+  const fvc  = fvcTeorico  * (1 + deltaFvc);
   const fev1 = fev1Teorico * (1 + deltaFev1);
-
-  // FVC: correlación más débil + ruido independiente
-  const deltaFvc = correlacion * 0.3 + (Math.random() * 0.04 - 0.02);
-  const fvc = fvcTeorico * (1 + deltaFvc);
-
-  // FEV1/FVC derivado — no perturbado independientemente
-  const fev1fvc = fev1 / fvc;
-
-  return { fvc, fev1, fev1fvc };
+  return { fvc, fev1, fev1fvc: fev1 / fvc };
 };
