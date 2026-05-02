@@ -10,6 +10,39 @@ interface ResultadoProps {
 
 const COLORES = ["#3b82f6", "#10b981", "#f59e0b"];
 
+// ============================================================
+// Z-SCORE (método LMS — GLI 2012)
+// ============================================================
+// Si L ≈ 0, se usa la fórmula logarítmica de seguridad.
+// El LLN corresponde a Z = -1.645 (percentil 5).
+const calcularZScore = (
+  yObs: number,
+  m: number,
+  l: number,
+  s: number,
+): number => {
+  if (m <= 0 || s <= 0) return NaN;
+
+  if (Math.abs(l) < 1e-10) {
+    // Caso l ≈ 0: fórmula logarítmica alternativa
+    return Math.log(yObs / m) / s;
+  }
+
+  return (Math.pow(yObs / m, l) - 1) / (l * s);
+};
+
+// Devuelve etiqueta clínica y color para el Z-score
+const interpretarZ = (z: number): { label: string; color: string } => {
+  if (isNaN(z)) return { label: "—", color: "#333" };
+  if (z >= -1.645) return { label: "Normal", color: "#10b981" };
+  if (z >= -2.5) return { label: "Leve ↓", color: "#f59e0b" };
+  if (z >= -4.0) return { label: "Moderado ↓", color: "#f97316" };
+  return { label: "Grave ↓", color: "#ef4444" };
+};
+
+// ============================================================
+// HELPERS EXISTENTES
+// ============================================================
 const encontrarMejor = (
   maniobras: ManiobraGuardada[],
 ): ManiobraGuardada | null => {
@@ -31,9 +64,10 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
     pacienteActual?.espirometrias?.[0]?.maniobrasPost ?? [];
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
 
-  const fvcTeorico = parametros?.fvc.m ?? 0;
-  const fev1Teorico = parametros?.fev1.m ?? 0;
-  const fev1fvcTeorico = parametros?.fev1fvc.m ?? 0;
+  // Valores teóricos (M) y parámetros LMS extraídos de las tablas GLI 2012
+  const fvcMLS = parametros?.fvc ?? { m: 0, l: 0, s: 1 };
+  const fev1MLS = parametros?.fev1 ?? { m: 0, l: 0, s: 1 };
+  const fev1fvcMLS = parametros?.fev1fvc ?? { m: 0, l: 0, s: 1 };
 
   const mejorPre = useMemo(
     () => encontrarMejor(maniobrasPreRaw),
@@ -44,7 +78,6 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
     [maniobrasPostRaw],
   );
 
-  // La maniobra a mostrar depende de la fase actual
   const mejorActual = faseActual === "pre" ? mejorPre : mejorPost;
   const indiceActual =
     faseActual === "pre"
@@ -54,28 +87,32 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
 
   const hayPost = maniobrasPostRaw.length > 0 && mejorPost;
 
+  // ── Construcción de filas ──────────────────────────────────────────────────
   const filas = mejorActual
     ? [
         {
           variable: "FVC",
           unidad: "L",
-          real: mejorActual.indices?.fvc ?? fvcTeorico,
+          real: mejorActual.indices?.fvc ?? fvcMLS.m,
           realPost: mejorPost?.indices?.fvc,
-          teorico: fvcTeorico,
+          teorico: fvcMLS.m,
+          mls: fvcMLS,
         },
         {
           variable: "FEV1",
           unidad: "L",
-          real: mejorActual.indices?.fev1 ?? fev1Teorico,
+          real: mejorActual.indices?.fev1 ?? fev1MLS.m,
           realPost: mejorPost?.indices?.fev1,
-          teorico: fev1Teorico,
+          teorico: fev1MLS.m,
+          mls: fev1MLS,
         },
         {
           variable: "FEV1/FVC",
           unidad: "%",
-          real: mejorActual.indices?.fev1fvc ?? fev1fvcTeorico,
+          real: mejorActual.indices?.fev1fvc ?? fev1fvcMLS.m,
           realPost: mejorPost?.indices?.fev1fvc,
-          teorico: fev1fvcTeorico,
+          teorico: fev1fvcMLS.m,
+          mls: fev1fvcMLS,
           esRatio: true,
         },
       ]
@@ -87,6 +124,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
   const colorPct = (pct: number) =>
     pct >= 80 ? "#10b981" : pct >= 70 ? "#f59e0b" : "#ef4444";
 
+  // ── Estado vacío ───────────────────────────────────────────────────────────
   if (!mejorActual) {
     return (
       <div className={styles.container}>
@@ -145,15 +183,42 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                 <th>Teórico</th>
                 <th>% Pre</th>
                 {hayPost && <th>% Post</th>}
+                <th className={styles.llnCol}>Z-score</th>
                 <th className={styles.llnCol}>LLN</th>
               </tr>
             </thead>
             <tbody>
               {filas.map(
-                ({ variable, unidad, real, realPost, teorico, esRatio }) => {
+                ({
+                  variable,
+                  unidad,
+                  real,
+                  realPost,
+                  teorico,
+                  mls,
+                  esRatio,
+                }) => {
                   const pctPre = teorico > 0 ? (real / teorico) * 100 : 0;
                   const pctPost =
                     realPost && teorico > 0 ? (realPost / teorico) * 100 : null;
+
+                  // Z-score sobre la mejor maniobra (pre o post según fase)
+                  const zPre = calcularZScore(real, mls.m, mls.l, mls.s);
+                  const { label: zLabel, color: zColor } = interpretarZ(zPre);
+
+                  // Fórmula exacta GLI 2012 (ver lookup tables):
+                  //   LLN = exp( ln(1 − 1.645·L·S) / L + ln(M) )
+                  //       = M · (1 − 1.645·L·S)^(1/L)     si L ≠ 0
+                  //       = M · exp(−1.645·S)              si L ≈ 0
+                  const lln = (() => {
+                    if (mls.m <= 0 || mls.s <= 0) return null;
+                    if (Math.abs(mls.l) < 1e-10) {
+                      return mls.m * Math.exp(-1.645 * mls.s);
+                    }
+                    const base = 1 - 1.645 * mls.l * mls.s;
+                    if (base <= 0) return null; // dominio inválido para log
+                    return mls.m * Math.pow(base, 1 / mls.l);
+                  })();
 
                   return (
                     <tr key={variable}>
@@ -171,6 +236,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                       <td className={styles.teoricoCell}>
                         {formatear(teorico, esRatio, unidad)}
                       </td>
+                      {/* % Pre */}
                       <td>
                         <span
                           className={styles.porcentajeBadge}
@@ -182,6 +248,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                           {pctPre.toFixed(1)}%
                         </span>
                       </td>
+                      {/* % Post */}
                       {hayPost && (
                         <td>
                           {pctPost !== null ? (
@@ -199,8 +266,25 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                           )}
                         </td>
                       )}
+                      {/* Z-score */}
+                      <td>
+                        <span
+                          className={styles.zscoreBadge}
+                          style={{ color: zColor, borderColor: zColor }}
+                          title={zLabel}
+                        >
+                          {isNaN(zPre) ? "—" : zPre.toFixed(2)}
+                        </span>
+                      </td>
+                      {/* LLN */}
                       <td className={styles.llnCell}>
-                        <span className={styles.llnPending}>—</span>
+                        {lln !== null ? (
+                          <span className={styles.llnValue}>
+                            {formatear(lln, esRatio, unidad)}
+                          </span>
+                        ) : (
+                          <span className={styles.llnPending}>—</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -210,14 +294,17 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
           </table>
         </section>
 
-        <p className={styles.llnNote}>
-          * LLN (Límite inferior de la normalidad) será calculado en una próxima
-          versión.
-        </p>
+        {/* Leyenda de interpretación */}
+        <div className={styles.zscoreLegend}>
+          <span className={styles.legendTitle}>Z-score (GLI 2012):</span>
+          <span style={{ color: "#10b981" }}>≥ −1.64 Normal</span>
+          <span style={{ color: "#f59e0b" }}>−2.5 a −1.64 Leve ↓</span>
+          <span style={{ color: "#f97316" }}>−4.0 a −2.5 Moderado ↓</span>
+          <span style={{ color: "#ef4444" }}>&lt; −4.0 Grave ↓</span>
+        </div>
       </main>
 
       <footer className={styles.footer}>
-        {/* Salbutamol solo aparece si aún no hay fase post */}
         {faseActual === "pre" && (
           <button
             className={styles.salbutamolBtn}
@@ -231,7 +318,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
         )}
         <button
           onClick={() => {
-            setFase("pre"); // reset para próxima sesión
+            setFase("pre");
             onNavigate("welcome");
           }}
           className={styles.finalizarBtn}
