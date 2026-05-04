@@ -10,9 +10,7 @@ export default function WelcomeScreen({ onNavigate }: WelcomeProps) {
       <div className={styles.backgroundDecoration} />
 
       <div className={styles.headerSection}>
-        <h1 className={styles.mainTitle}>
-          Simulador interactivo de <br /> espirometría para estudiantes
-        </h1>
+        <h1 className={styles.mainTitle}>EspiroSim</h1>
         <p className={styles.subTitle}>
           Selecciona el modo de trabajo para comenzar
         </p>
@@ -21,14 +19,14 @@ export default function WelcomeScreen({ onNavigate }: WelcomeProps) {
       <div className={styles.cardsGrid}>
         <SelectionCard
           title="Modo Personalizado"
-          description="Gestión manual de pacientes, ingreso de datos y análisis en tiempo real."
+          description="Simula un paciente personalizado  o genera uno aleatorio."
           onClick={() => onNavigate("custom")}
           color="indigo"
         />
 
         <SelectionCard
           title="Casos Clínicos"
-          description="Biblioteca de casos predefinidos para estudio y simulación."
+          description="Casos clínicos predefinidos para explorar distintos patrones espirométricos."
           onClick={() => onNavigate("clinical")}
           color="emerald"
         />

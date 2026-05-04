@@ -10,17 +10,24 @@ interface CorregirProps {
   data: NavigationPayload | null;
 }
 
-const INICIO_INHALACION_PROFUNDA = 423;
-
 export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
-  const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
+  const pacienteActual  = usePacientStore((state) => state.pacienteSeleccionado);
+  const faseActual      = usePacientStore((state) => state.faseActual);
+
+  const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
+  const fvc        = parametros?.fvc.m ?? 5.241;
+
+  const vbe       = data?.vbe ?? 0;
+  const vbeMl     = Math.round(vbe * 1000);
+  const umbralVBE = Math.max(0.150, fvc * 0.05);
+  const vbeCumple = vbe < umbralVBE;
 
   const [criterios, setCriterios] = useState({
-    vtestables: false,
-    esfuerzomaximo: false,
+    vtestables:         false,
+    esfuerzomaximo:     false,
     volumenextrapolado: false,
-    pefcontinuo: false,
+    pefcontinuo:        false,
   });
 
   const todosCumplen = Object.values(criterios).every((v) => v === true);
@@ -29,41 +36,28 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
     setCriterios((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
-  const fvc = parametros?.fvc.m ?? 5.241;
-
-  const datosBucles =
-    data?.datosFlujoVolumen.slice(0, INICIO_INHALACION_PROFUNDA + 1) ?? [];
-  const datosExhalacion =
-    data?.datosFlujoVolumen.slice(INICIO_INHALACION_PROFUNDA) ?? [];
-
-  const faseActual = usePacientStore((state) => state.faseActual);
+  const idxCorte  = data?.idxInicioExhalacionForzada ?? 0;
+  const datosGris = data?.datosFlujoVolumen.slice(0, idxCorte + 1) ?? [];
+  const datosAzul = data?.datosFlujoVolumen.slice(idxCorte)        ?? [];
 
   const handleGuardarYContinuar = () => {
     if (!todosCumplen || !data || !pacienteActual) return;
 
-    // Lee el array correcto según la fase
-    const arrayActual =
+    const cantidadAntes =
       faseActual === "pre"
-        ? pacienteActual.espirometrias[0]?.maniobras
-        : pacienteActual.espirometrias[0]?.maniobrasPost;
+        ? (pacienteActual.espirometrias[0]?.maniobras?.length     ?? 0)
+        : (pacienteActual.espirometrias[0]?.maniobrasPost?.length ?? 0);
 
-    const cantidadAntes = arrayActual?.length ?? 0;
-
-    const nuevaManiobra = {
-      datosFlujoVolumen: data.datosFlujoVolumen,
+    guardarManiobra(pacienteActual.id, {
+      datosFlujoVolumen:  data.datosFlujoVolumen,
       datosVolumenTiempo: data.datosVolumenTiempo,
       criterios,
-      fecha: new Date().toISOString(),
+      fecha:   new Date().toISOString(),
       indices: data.indices,
-    };
-
-    guardarManiobra(pacienteActual.id, nuevaManiobra);
-
-    const cantidadDespues = cantidadAntes + 1;
+    });
 
     if (onNavigate) {
-      if (cantidadDespues >= 3) {
+      if (cantidadAntes + 1 >= 3) {
         onNavigate("interpolacion");
       } else {
         onNavigate("maniobra");
@@ -74,10 +68,7 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   if (!data) {
     return (
       <div className={styles.layout}>
-        <div
-          className={styles.card}
-          style={{ margin: "auto", textAlign: "center" }}
-        >
+        <div className={styles.card} style={{ margin: "auto", textAlign: "center" }}>
           <h2>No hay datos de maniobra disponibles</h2>
           <p>Debe realizar una maniobra primero para poder evaluarla.</p>
           <button onClick={onBack} className={styles.mainActionButton}>
@@ -102,8 +93,8 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
             ejeY="Flujo (L/s)"
             colorLinea="#3b82f6"
             colorSecundario="#94a3b8"
-            data={datosExhalacion}
-            dataSecundaria={datosBucles}
+            data={datosAzul}
+            dataSecundaria={datosGris}
             mostrarEstatico={true}
             minX={-3}
             maxX={12}
@@ -121,8 +112,8 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
             data={data.datosVolumenTiempo}
             mostrarEstatico={true}
             minX={-0.2}
-            maxX={17}
-            minY={-0.5}
+            maxX={11}
+            minY={-0.2}
             maxY={Math.ceil(fvc) + 1}
           />
         </div>
@@ -133,9 +124,7 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <div>
             <h2>Revisión</h2>
             {pacienteActual && (
-              <span className={styles.patientName}>
-                {pacienteActual.nombre}
-              </span>
+              <span className={styles.patientName}>{pacienteActual.nombre}</span>
             )}
           </div>
           <button onClick={onBack} className={styles.backButtonOutline}>
@@ -143,10 +132,11 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           </button>
         </div>
 
-        {/* Índices de esta maniobra */}
         {data.indices && (
           <div className={styles.card}>
             <span className={styles.label}>Índices de esta maniobra</span>
+
+            {/* Índices principales */}
             <div className={styles.indicesGrid}>
               <div className={styles.indiceItem}>
                 <span className={styles.indiceLabel}>FVC</span>
@@ -167,6 +157,20 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
                 </span>
               </div>
             </div>
+
+            {/* VBE separado visualmente */}
+            <div className={styles.vbeSeparador} />
+            <div className={styles.vbeRow}>
+              <div className={styles.vbeRowLeft}>
+                <span className={styles.indiceLabel}>VBE</span>
+              </div>
+              <span
+                className={styles.indiceValor}
+                style={{ color: vbeCumple ? "#10b981" : "#ef4444" }}
+              >
+                {vbeMl} ml
+              </span>
+            </div>
           </div>
         )}
 
@@ -180,24 +184,16 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <span className={styles.label}>Criterios de Aceptabilidad</span>
           <div className={styles.checkList}>
             {[
-              { key: "vtestables", label: "3 Vt estables" },
-              { key: "esfuerzomaximo", label: "Esfuerzo máximo" },
-              {
-                key: "volumenextrapolado",
-                label: "Volumen extrapolado < 100 ml",
-              },
-              {
-                key: "pefcontinuo",
-                label: "PEF continuo y libre de artefactos",
-              },
+              { key: "vtestables",         label: "3 Vt estables"                      },
+              { key: "esfuerzomaximo",     label: "Esfuerzo máximo"                    },
+              { key: "volumenextrapolado", label: "Volumen extrapolado aceptable (<100ml)"       },
+              { key: "pefcontinuo",        label: "PEF continuo y libre de artefactos" },
             ].map(({ key, label }) => (
               <label key={key} className={styles.checkItem}>
                 <input
                   type="checkbox"
                   checked={criterios[key as keyof typeof criterios]}
-                  onChange={() =>
-                    handleToggleCriterio(key as keyof typeof criterios)
-                  }
+                  onChange={() => handleToggleCriterio(key as keyof typeof criterios)}
                 />
                 {label}
               </label>

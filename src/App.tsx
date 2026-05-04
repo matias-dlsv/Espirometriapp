@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import "./App.css";
 import { Toaster } from "react-hot-toast";
 
@@ -9,9 +9,6 @@ import Maniobra from "./views/Maniobra";
 import Corregir from "./views/Corregir";
 import Interpolacion from "./views/Interpolacion";
 import Resultado from "./views/Resultado";
-
-import { readTextFile, exists, BaseDirectory } from "@tauri-apps/plugin-fs";
-import { usePacientStore, Paciente } from "./store/pacientStore";
 
 export type AppView =
   | "welcome"
@@ -26,48 +23,40 @@ export interface NavigationPayload {
   datosFlujoVolumen: number[][];
   datosVolumenTiempo: number[][];
   indices: {
-    // NUEVO
     fvc: number;
     fev1: number;
     fev1fvc: number;
   };
+  volResidual?: number;
+  idxInicioExhalacionForzada?: number;
+  vbe?: number;
 }
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("welcome");
-  const [previousView, setPreviousView] = useState<AppView>("welcome");
+  // Guarda de dónde vino el usuario antes de entrar a maniobra.
+  // Solo se actualiza cuando se entra a maniobra desde fuera del ciclo
+  // corregir → maniobra, para que el botón "Volver" siempre regrese
+  // al origen real (clinical o custom).
+  const [origenManiobra, setOrigenManiobra] = useState<AppView>("welcome");
   const [navigationData, setNavigationData] =
     useState<NavigationPayload | null>(null);
 
-  const setPacientes = usePacientStore((state) => state.setPacientes);
-
-  useEffect(() => {
-    const cargarPacientes = async () => {
-      try {
-        const fileName = "pacientes_db.json";
-        const directory = BaseDirectory.AppData;
-
-        if (await exists(fileName, { baseDir: directory })) {
-          const contenido = await readTextFile(fileName, {
-            baseDir: directory,
-          });
-          const pacientesDisco: Paciente[] = JSON.parse(contenido);
-          setPacientes(pacientesDisco);
-        }
-      } catch (err) {
-        console.error("Error al cargar pacientes:", err);
-      }
-    };
-
-    cargarPacientes();
-  }, []);
-
   const handleNavigate = (view: AppView, payload?: NavigationPayload) => {
-    setPreviousView(currentView);
-    setCurrentView(view);
-    if (payload) {
+    // Registrar origen solo al entrar a maniobra desde fuera del ciclo
+    console.log(`[Nav] ${currentView} → ${view}`);
+    if (view === "maniobra" && currentView !== "corregir") {
+      setOrigenManiobra(currentView);
+    }
+
+    // Al volver a maniobra limpiar datos de la maniobra anterior
+    if (view === "maniobra") {
+      setNavigationData(null);
+    } else if (payload) {
       setNavigationData(payload);
     }
+
+    setCurrentView(view);
   };
 
   return (
@@ -97,7 +86,7 @@ function App() {
 
       {currentView === "maniobra" && (
         <Maniobra
-          onBack={() => setCurrentView(previousView)}
+          onBack={() => setCurrentView(origenManiobra)}
           onNavigate={handleNavigate}
         />
       )}
@@ -116,6 +105,7 @@ function App() {
           onNavigate={handleNavigate}
         />
       )}
+
       {currentView === "resultado" && (
         <Resultado
           onBack={() => setCurrentView("interpolacion")}

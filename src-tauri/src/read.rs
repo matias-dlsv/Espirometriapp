@@ -81,15 +81,15 @@ pub fn leer_tabla_espirometria(
             let a5 = extraer_coef(8, 8);
             let a6 = extraer_coef(9, 8);
 
-            let p0 = extraer_coef(3, 10);
-            let p1 = extraer_coef(5, 10);
-            let p2 = extraer_coef(6, 10);
-            let p3 = extraer_coef(7, 10);
-            let p4 = extraer_coef(8, 10);
-            let p5 = extraer_coef(9, 10);
+            let p0 = extraer_coef(3, 11);
+            let p1 = extraer_coef(5, 11);
+            let p2 = extraer_coef(6, 11);
+            let p3 = extraer_coef(7, 11);
+            let p4 = extraer_coef(8, 11);
+            let p5 = extraer_coef(9, 11);
 
-            let q0 = extraer_coef(3, 12);
-            let q1 = extraer_coef(5, 12);
+            let q0 = extraer_coef(3, 14);
+            let q1 = extraer_coef(5, 14);
 
             let mut mspline = 0.0;
             let mut lspline = 0.0;

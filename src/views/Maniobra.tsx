@@ -3,7 +3,6 @@ import styles from "./Maniobra.module.css";
 import GraficoPaciente, { GraficoRef } from "../components/GraficoPaciente";
 import { usePacientStore } from "../store/pacientStore";
 import { AppView, NavigationPayload } from "../App";
-// Cambia el import:
 import {
   aplicarPatron,
   generarIndicesAleatorios,
@@ -36,170 +35,234 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
   const fvc = parametros?.fvc.m ?? 5.241;
   const fev1 = parametros?.fev1.m ?? 4.511;
 
-  const { datosFlujoVolumen, datosVolumenTiempo, indicesManiobra } =
-    useMemo(() => {
-      // 1. Primero generamos los índices aleatorios de esta maniobra
-      const indicesManiobra = generarIndicesAleatorios(fvc, fev1);
+  const mls = useMemo(() => {
+    if (!parametros) return undefined;
+    return {
+      fvc: parametros.fvc,
+      fev1: parametros.fev1,
+      fev1fvc: parametros.fev1fvc,
+    };
+  }, [parametros]);
 
-      // 2. La curva usa los índices reales, no los teóricos
-      const fvcM = indicesManiobra.fvc;
-      const fev1M = indicesManiobra.fev1;
+  const {
+    datosFlujoVolumen,
+    datosVolumenTiempo,
+    indicesManiobra,
+    volResidual,
+    idxInicioExhalacionForzada,
+    vbe,
+  } = useMemo(() => {
+    const indicesManiobra = generarIndicesAleatorios(
+      fvc,
+      fev1,
+      mls,
+      patronActivo,
+    );
 
-      // 3. peakFlujo derivado del fev1 real de esta maniobra
-      const peakFlujo = fev1M * (1.45 + Math.random() * 0.15);
-      const peakVol = fvcM * (0.13 + Math.random() * 0.05);
+    const fvcM = indicesManiobra.fvc;
+    const fev1M = indicesManiobra.fev1;
 
-      // 4. Todo lo demás usa fvcM y fev1M en vez de fvc y fev1
-      const cx = fvcM * 0.55;
-      const rx = fvcM * 0.12;
-      const ry = 0.6;
-      const casiFvc = fvcM * 0.96;
-      const multiplicadorRuido = 0.6;
+    const peakFlujo = fev1M * (1.45 + Math.random() * 0.15);
+    const peakVol = fvcM * (0.13 + Math.random() * 0.05);
 
-      // 1. ELIPSES
-      const generarElipseOrganica = (
-        centroX: number,
-        radioX: number,
-        radioY: number,
-        puntos = 120,
-      ): number[][] => {
-        const elipse: number[][] = [];
-        for (let i = 0; i <= puntos; i++) {
-          const theta = (i / puntos) * 2 * Math.PI;
-          const factorForma = Math.sin(theta) > 0 ? 0.9 : 1.2;
-          const rXActual = perturbar(radioX, 0.02 * multiplicadorRuido);
-          const rYActual = perturbar(radioY, 0.05 * multiplicadorRuido);
-          const x = centroX + rXActual * Math.cos(theta);
-          const y =
-            -rYActual *
-            Math.sign(Math.sin(theta)) *
-            Math.pow(Math.abs(Math.sin(theta)), factorForma);
-          elipse.push([
-            perturbar(x, 0.005 * multiplicadorRuido),
-            perturbar(y, 0.02 * multiplicadorRuido),
-          ]);
-        }
-        return elipse;
-      };
+    const cx = fvcM * 0.55;
+    const rx = fvcM * 0.12;
+    const ry = 0.6;
+    const casiFvc = fvcM * 0.96;
+    const multiplicadorRuido = 0.6;
 
-      const bucle1 = generarElipseOrganica(cx, rx, ry, 120);
-      const bucle2 = generarElipseOrganica(cx, rx, ry * 1.05, 120);
-
-      // 2. BUCLE 3 INHALACIÓN
-      const bucle3Inhalacion: number[][] = [];
-      for (let i = 0; i <= 80; i++) {
-        const theta = (i / 80) * Math.PI;
-        const x =
-          cx + perturbar(rx, 0.02 * multiplicadorRuido) * Math.cos(theta);
+    const generarElipseOrganica = (
+      centroX: number,
+      radioX: number,
+      radioY: number,
+      puntos = 120,
+    ): number[][] => {
+      const elipse: number[][] = [];
+      for (let i = 0; i <= puntos; i++) {
+        const theta = (i / puntos) * 2 * Math.PI;
+        const factorForma = Math.sin(theta) > 0 ? 0.9 : 1.2;
+        const rXActual = perturbar(radioX, 0.02 * multiplicadorRuido);
+        const rYActual = perturbar(radioY, 0.05 * multiplicadorRuido);
+        const x = centroX + rXActual * Math.cos(theta);
         const y =
-          -perturbar(ry * 1.1, 0.08 * multiplicadorRuido) *
-          Math.pow(Math.sin(theta), 0.8);
-        bucle3Inhalacion.push([perturbar(x, 0.005), y]);
-      }
-
-      // 3. EXHALACIÓN EXTENDIDA
-      const bucle3Exhalacion: number[][] = [];
-      const cx_exh = (cx - rx + casiFvc) / 2;
-      const rx_exh = (casiFvc - (cx - rx)) / 2;
-      for (let i = 1; i <= 100; i++) {
-        const theta = Math.PI + (i / 100) * Math.PI;
-        const x = cx_exh + rx_exh * Math.cos(theta);
-        const y =
-          -perturbar(ry * 1.3, 0.1 * multiplicadorRuido) * Math.sin(theta);
-        bucle3Exhalacion.push([perturbar(x, 0.005), y]);
-      }
-
-      // 4. INSPIRACIÓN PROFUNDA MÁXIMA
-      const inspiracionProfunda: number[][] = [];
-      const cx_insp = casiFvc / 2;
-      for (let i = 1; i <= 150; i++) {
-        const t = i / 150;
-        const theta = t * Math.PI;
-        const x = cx_insp + cx_insp * Math.cos(theta);
-        const flujoBase = -2.0 * Math.sin(theta);
-        const deformacionAsimetrica = 1 + 0.3 * Math.sin(theta * 0.5);
-        const y = flujoBase * deformacionAsimetrica;
-        inspiracionProfunda.push([
-          perturbar(x, 0.005),
-          perturbar(y, 0.03 * multiplicadorRuido),
+          -rYActual *
+          Math.sign(Math.sin(theta)) *
+          Math.pow(Math.abs(Math.sin(theta)), factorForma);
+        elipse.push([
+          perturbar(x, 0.005 * multiplicadorRuido),
+          perturbar(y, 0.02 * multiplicadorRuido),
         ]);
       }
+      return elipse;
+    };
 
-      // 5. EXHALACIÓN FORZADA
-      const exhalacionForzada: number[][] = [];
+    const bucle1 = generarElipseOrganica(cx, rx, ry, 120);
+    const bucle2 = generarElipseOrganica(cx, rx, ry * 1.05, 120);
 
-      // 5.1 SUBIDA RÁPIDA
-      const puntosSubida = 30;
-      for (let i = 0; i <= puntosSubida; i++) {
-        const t = i / puntosSubida;
-        const x = t * peakVol;
-        const y = peakFlujo * Math.pow(t, 0.7);
-        exhalacionForzada.push([perturbar(x, 0.001), perturbar(y, 0.01)]);
+    const bucle3Inhalacion: number[][] = [];
+    for (let i = 0; i <= 80; i++) {
+      const theta = (i / 80) * Math.PI;
+      const x = cx + perturbar(rx, 0.02 * multiplicadorRuido) * Math.cos(theta);
+      const y =
+        -perturbar(ry * 1.1, 0.08 * multiplicadorRuido) *
+        Math.pow(Math.sin(theta), 0.8);
+      bucle3Inhalacion.push([perturbar(x, 0.005), y]);
+    }
+
+    const bucle3Exhalacion: number[][] = [];
+    const cx_exh = (cx - rx + casiFvc) / 2;
+    const rx_exh = (casiFvc - (cx - rx)) / 2;
+    for (let i = 1; i <= 100; i++) {
+      const theta = Math.PI + (i / 100) * Math.PI;
+      const x = cx_exh + rx_exh * Math.cos(theta);
+      const y =
+        -perturbar(ry * 1.3, 0.1 * multiplicadorRuido) * Math.sin(theta);
+      bucle3Exhalacion.push([perturbar(x, 0.005), y]);
+    }
+
+    const inspiracionProfunda: number[][] = [];
+    const cx_insp = casiFvc / 2;
+    for (let i = 1; i <= 150; i++) {
+      const t = i / 150;
+      const theta = t * Math.PI;
+      const x = cx_insp + cx_insp * Math.cos(theta);
+      const flujoBase = -2.0 * Math.sin(theta);
+      const deformacionAsimetrica = 1 + 0.3 * Math.sin(theta * 0.5);
+      const y = flujoBase * deformacionAsimetrica;
+      inspiracionProfunda.push([
+        perturbar(x, 0.005),
+        perturbar(y, 0.03 * multiplicadorRuido),
+      ]);
+    }
+
+    const exhalacionForzada: number[][] = [];
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30;
+      exhalacionForzada.push([
+        perturbar(t * peakVol, 0.001),
+        perturbar(peakFlujo * Math.pow(t, 0.7), 0.01),
+      ]);
+    }
+    for (let i = 1; i <= 300; i++) {
+      const t = i / 300;
+      const curveT = Math.pow(t, 0.7);
+      const vol = peakVol + (fvcM - peakVol) * curveT;
+      const flujo = peakFlujo * Math.pow(1 - curveT, 1.5);
+      exhalacionForzada.push([perturbar(vol, 0.002), perturbar(flujo, 0.01)]);
+    }
+
+    const volResidual = Math.random() * 0.09 + 0.005;
+    const peakInspForzado = -(fev1M * (0.55 + Math.random() * 0.1));
+    const inhalacionPostForzada: number[][] = [];
+    const nPuntosInhForzada = 200;
+    for (let i = 0; i <= nPuntosInhForzada; i++) {
+      const t = i / nPuntosInhForzada;
+      const vol = fvcM * (1 - t) + volResidual * t;
+      const flujo =
+        peakInspForzado *
+        Math.sin(Math.PI * Math.pow(t, 0.75)) *
+        (1 - 0.15 * Math.sin(2 * Math.PI * t));
+      inhalacionPostForzada.push([
+        perturbar(vol, 0.003),
+        perturbar(flujo, 0.02 * multiplicadorRuido),
+      ]);
+    }
+
+    const idxInicioExhalacionForzada =
+      bucle1.length +
+      bucle2.length +
+      bucle3Inhalacion.length +
+      bucle3Exhalacion.length +
+      inspiracionProfunda.length;
+
+    const flujoVolumen: number[][] = [
+      ...bucle1,
+      ...bucle2,
+      ...bucle3Inhalacion,
+      ...bucle3Exhalacion,
+      ...inspiracionProfunda,
+      ...exhalacionForzada,
+      ...inhalacionPostForzada,
+    ];
+
+    // ── Volumen/Tiempo ────────────────────────────────────────────────────
+    const tiempos = [
+      0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6,
+      0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,
+      10.0,
+    ];
+
+    const propFvc: number[] = [
+  0,    0.25, 0.42, 0.55, 0.64, 0.71, 0.79, 0.86, 0.905, 0.928,   // 0–0.15s  empinado
+  0.944, 0.956, 0.965, 0.972, 0.978, 0.982, 0.985, 0.988,          // 0.2–0.9s desaceleración gradual
+  0.9905, 0.9925,                                                     // 1.0–1.5s
+  0.9945, 0.9960, 0.9970, 0.9980, 0.9987, 0.9992,                   // 2.0–5.0s
+  0.9995, 0.9997, 0.9999, 1.0,                                       // 6.0–10.0s
+];
+
+    // Curva cóncava suave al inicio usando función potencia
+    // El exponente >1 garantiza arranque lento que acelera (cóncavo)
+    const earlyExponent = 2.8 + Math.random() * 0.8; // 1.8–2.4
+    const tTransFin = 0.25;
+
+    // Volumen objetivo al final de la zona de arranque (para empalme)
+    const idxTransFin = tiempos.findIndex((t) => t >= tTransFin);
+    const volEnTransFin = propFvc[idxTransFin] * fvcM;
+
+    const volumenTiempo: number[][] = tiempos.map((t, i) => {
+      const volBase = propFvc[i] * fvcM;
+
+      if (t <= tTransFin) {
+        const tNorm = t / tTransFin;
+        // Power ramp: en t=0 vale 0, en t=tTransFin vale volEnTransFin
+        const volRamp = volEnTransFin * Math.pow(tNorm, earlyExponent);
+        // Smoothstep blend para empalme continuo en tTransFin
+        const blend = tNorm * tNorm * (3 - 2 * tNorm);
+        return [t, Math.max(0, volRamp * (1 - blend) + volBase * blend)];
       }
 
-      // 5.2 BAJADA PROLONGADA
-      const puntosRampa = 300;
-      for (let i = 1; i <= puntosRampa; i++) {
-        const t = i / puntosRampa;
-        const curveT = Math.pow(t, 0.7);
-        const vol = peakVol + (fvcM - peakVol) * curveT;
-        const flujo = peakFlujo * Math.pow(1 - curveT, 1.5);
-        exhalacionForzada.push([perturbar(vol, 0.002), perturbar(flujo, 0.01)]);
+      return [t, volBase];
+    });
+
+    // Buscar máxima pendiente
+    let maxPendiente = 0;
+    let idxMaxPend   = 1;
+    for (let i = 1; i < volumenTiempo.length - 1; i++) {
+      if (volumenTiempo[i][0] > 0.2) break;
+      const dt   = volumenTiempo[i + 1][0] - volumenTiempo[i - 1][0];
+      const dv   = volumenTiempo[i + 1][1] - volumenTiempo[i - 1][1];
+      const pend = dv / dt;
+      if (pend > maxPendiente) {
+        maxPendiente = pend;
+        idxMaxPend   = i;
       }
+    }
 
-      const flujoVolumen: number[][] = [
-        ...bucle1,
-        ...bucle2,
-        ...bucle3Inhalacion,
-        ...bucle3Exhalacion,
-        ...inspiracionProfunda,
-        ...exhalacionForzada,
-      ];
+    // ✅ Extrapolación de la tangente hacia t=0
+    const tPico = volumenTiempo[idxMaxPend][0];
+    const vPico = volumenTiempo[idxMaxPend][1];
+    const vbe   = Math.max(0, vPico - maxPendiente * tPico);
+    const flujoVolumenFinal = aplicarPatron(flujoVolumen, fvcM, patronActivo);
 
-      const volumenTiempo: number[][] = [
-        [0, 0],
-        [0.1, fvcM * 0.08],
-        [0.2, fvcM * 0.18],
-        [0.3, fvcM * 0.3],
-        [0.4, fvcM * 0.42],
-        [0.5, fvcM * 0.52],
-        [0.6, fvcM * 0.61],
-        [0.7, fvcM * 0.68],
-        [0.8, fvcM * 0.74],
-        [0.9, fvcM * 0.79],
-        [1.0, fvcM * 0.83],
-        [1.2, fvcM * 0.88],
-        [1.5, fvcM * 0.91],
-        [2.0, fvcM * 0.94],
-        [2.5, fvcM * 0.96],
-        [3.0, fvcM * 0.972],
-        [4.0, fvcM * 0.981],
-        [5.0, fvcM * 0.988],
-        [6.0, fvcM * 0.992],
-        [7.0, fvcM * 0.995],
-        [8.0, fvcM * 0.997],
-        [9.0, fvcM * 0.998],
-        [10.0, fvcM * 0.999],
-        [11.0, fvcM],
-      ];
-      const flujoVolumenFinal = aplicarPatron(flujoVolumen, fvcM, patronActivo);
-
-      // Índices correlacionados con el peak real de esta maniobra
-      //const indicesManiobra = calcularIndicesManiobra(fvc, fev1, peakFlujo);
-
-      return {
-        datosFlujoVolumen: flujoVolumenFinal,
-        datosVolumenTiempo: volumenTiempo,
-        indicesManiobra,
-      };
-    }, [fev1, fvc, patronActivo]);
+    return {
+      datosFlujoVolumen: flujoVolumenFinal,
+      datosVolumenTiempo: volumenTiempo,
+      indicesManiobra,
+      volResidual,
+      idxInicioExhalacionForzada,
+      vbe,
+    };
+  }, [fev1, fvc, mls, patronActivo]);
 
   const iniciar = () => {
     if (isExamining) return;
     setIsExamining(true);
     setTimer("00:00");
     setProgressStep(0);
-    grafico1Ref.current?.ejecutarAnimacion();
+
+    requestAnimationFrame(() => {
+      grafico1Ref.current?.ejecutarAnimacion();
+    });
 
     let segundos = 0;
     const intervaloTimer = setInterval(() => {
@@ -220,12 +283,10 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
   return (
     <div className={styles.layout}>
-      {/* COLUMNA IZQUIERDA */}
       <div className={styles.chartsColumn}>
         <button onClick={onBack} className={styles.mobileBackBtn}>
           ← Salir
         </button>
-
         <div className={styles.chartCard}>
           <GraficoPaciente
             ref={grafico1Ref}
@@ -242,7 +303,6 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
         </div>
       </div>
 
-      {/* COLUMNA DERECHA */}
       <aside className={styles.controlsPanel}>
         <div className={styles.panelHeader}>
           <div>
@@ -321,6 +381,9 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
               datosFlujoVolumen,
               datosVolumenTiempo,
               indices: indicesManiobra,
+              volResidual,
+              idxInicioExhalacionForzada,
+              vbe,
             })
           }
           className={styles.nextButton}

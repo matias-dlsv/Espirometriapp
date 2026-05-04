@@ -64,7 +64,9 @@ export default function Interpolacion({
       </div>
     );
   }
-
+  console.log("maniobras:", maniobras.length);
+  console.log("pacienteActual:", pacienteActual?.nombre);
+  console.log("faseActual:", faseActual);
   return (
     <div className={styles.container}>
       {/* HEADER */}

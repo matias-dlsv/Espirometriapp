@@ -6,7 +6,7 @@ import {
   TooltipComponent,
   GridComponent,
   DatasetComponent,
-  LegendComponent, // Añadido para mostrar qué línea es cada maniobra
+  LegendComponent,
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { LineSeriesOption } from "echarts/charts";
@@ -16,7 +16,7 @@ echarts.use([
   TooltipComponent,
   GridComponent,
   DatasetComponent,
-  LegendComponent, // Activado
+  LegendComponent,
   LineChart,
   CanvasRenderer,
 ]);
@@ -29,7 +29,7 @@ interface GraficoProps {
   ejeY?: string;
   data?: number[][];
   dataSecundaria?: number[][];
-  multiData?: { puntos: number[][]; color: string; label?: string }[]; // NUEVO: Soporte para múltiples curvas
+  multiData?: { puntos: number[][]; color: string; label?: string }[];
   mostrarEstatico?: boolean;
   minX?: number;
   maxX?: number;
@@ -53,7 +53,7 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       ejeY = "",
       data = [],
       dataSecundaria,
-      multiData, // NUEVO
+      multiData,
       mostrarEstatico = false,
       minX = 0,
       maxX = 10,
@@ -63,17 +63,25 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     },
     ref,
   ) => {
-    const chartRef = useRef<HTMLDivElement>(null);
-    const chartInstanceRef = useRef<echarts.ECharts | null>(null);
-    const animationRef = useRef<number | null>(null);
+    const chartRef      = useRef<HTMLDivElement>(null);
+    const instanceRef   = useRef<echarts.ECharts | null>(null);
+    const animationRef  = useRef<number | null>(null);
 
-    const getOption = (
+    // Refs para que ejecutarAnimacion siempre lea los valores actuales
+    // sin necesitar ser recreada cuando cambian las props.
+    const dataRef             = useRef(data);
+    const mostrarEstaticoRef  = useRef(mostrarEstatico);
+    const multiDataRef        = useRef(multiData);
+    dataRef.current           = data;
+    mostrarEstaticoRef.current = mostrarEstatico;
+    multiDataRef.current      = multiData;
+
+    const buildOption = (
       currentData: number[][] = [],
       currentSecundaria?: number[][],
     ): echarts.EChartsCoreOption => {
       const series: LineSeriesOption[] = [];
 
-      // NUEVO: Si existe multiData, dibujamos todas las líneas
       if (multiData && multiData.length > 0) {
         multiData.forEach((serie, index) => {
           series.push({
@@ -87,7 +95,6 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
           });
         });
       } else {
-        // LÓGICA ORIGINAL: Se mantiene intacta para no romper la vista normal
         if (currentSecundaria && currentSecundaria.length > 0) {
           series.push({
             data: currentSecundaria,
@@ -98,7 +105,6 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
             z: 1,
           });
         }
-
         series.push({
           data: currentData,
           type: "line",
@@ -116,46 +122,24 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
           textStyle: { color: "#333", fontSize: 14, fontWeight: "bold" },
         },
         tooltip: { trigger: "axis" },
-        legend: multiData ? { top: 25, icon: "circle" } : undefined, // Leyenda solo si es interpolación
+        legend: multiData ? { top: 25, icon: "circle" } : undefined,
         grid: {
           top: multiData ? 55 : 35,
-          bottom: 15,
-          left: 25,
-          right: 25,
+          bottom: 15, left: 25, right: 25,
           containLabel: true,
         },
         xAxis: {
-          type: "value",
-          name: ejeX,
-          nameLocation: "end",
-          min: minX,
-          max: maxX,
-          axisLine: {
-            show: true,
-            onZero: true,
-            lineStyle: { color: "rgb(85, 85, 85)", width: 2 },
-          },
-          splitLine: {
-            show: true,
-            lineStyle: { color: "rgba(0, 0, 0, 0.1)", type: "dashed" },
-          },
+          type: "value", name: ejeX, nameLocation: "end",
+          min: minX, max: maxX,
+          axisLine: { show: true, onZero: true, lineStyle: { color: "rgb(85,85,85)", width: 2 } },
+          splitLine: { show: true, lineStyle: { color: "rgba(0,0,0,0.1)", type: "dashed" } },
           axisLabel: { color: "#555" },
         },
         yAxis: {
-          type: "value",
-          name: ejeY,
-          nameLocation: "end",
-          min: minY,
-          max: maxY,
-          axisLine: {
-            show: true,
-            onZero: true,
-            lineStyle: { color: "rgb(85, 85, 85)", width: 2 },
-          },
-          splitLine: {
-            show: true,
-            lineStyle: { color: "rgba(0, 0, 0, 0.1)", type: "dashed" },
-          },
+          type: "value", name: ejeY, nameLocation: "end",
+          min: minY, max: maxY,
+          axisLine: { show: true, onZero: true, lineStyle: { color: "rgb(85,85,85)", width: 2 } },
+          splitLine: { show: true, lineStyle: { color: "rgba(0,0,0,0.1)", type: "dashed" } },
           axisLabel: { color: "#555" },
         },
         backgroundColor: "#ffffff",
@@ -164,107 +148,94 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       };
     };
 
+    // ── Efecto 1: montar/desmontar el gráfico UNA SOLA VEZ ────────────────
     useEffect(() => {
-      if (!chartInstanceRef.current && chartRef.current) {
-        chartInstanceRef.current = echarts.init(chartRef.current);
-      }
+      if (!chartRef.current) return;
+      const chart = echarts.init(chartRef.current);
+      instanceRef.current = chart;
 
-      const dataInicial = mostrarEstatico ? data : [];
-      const secundariaInicial = mostrarEstatico ? dataSecundaria : undefined;
-
-      chartInstanceRef.current?.setOption(
-        getOption(dataInicial, secundariaInicial),
-        true,
-      );
-
-      const handleResize = () => chartInstanceRef.current?.resize();
+      const handleResize = () => chart.resize();
       window.addEventListener("resize", handleResize);
 
       return () => {
         window.removeEventListener("resize", handleResize);
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
-        chartInstanceRef.current?.dispose();
-        chartInstanceRef.current = null;
+        chart.dispose();
+        instanceRef.current = null;
       };
+    }, []); // solo al montar/desmontar
+
+    // ── Efecto 2: actualizar opciones cuando cambian props ────────────────
+    // NO destruye el gráfico, solo llama setOption.
+    useEffect(() => {
+      const chart = instanceRef.current;
+      if (!chart) return;
+
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+
+      const dataInicial     = mostrarEstatico ? data : [];
+      const secundariaInicial = mostrarEstatico ? dataSecundaria : undefined;
+      chart.setOption(buildOption(dataInicial, secundariaInicial), true);
     }, [
-      titulo,
-      colorLinea,
-      colorSecundario,
-      ejeX,
-      ejeY,
-      minX,
-      maxX,
-      minY,
-      maxY,
-      mostrarEstatico,
-      data,
-      dataSecundaria,
-      multiData, // NUEVO: Actualiza si cambia el array de múltiples curvas
+      titulo, colorLinea, colorSecundario, ejeX, ejeY,
+      minX, maxX, minY, maxY, mostrarEstatico,
+      data, dataSecundaria, multiData,
     ]);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        ejecutarAnimacion: () => {
-          if (mostrarEstatico || multiData) return; // Detiene la animación si es interpolación
-          const instance = chartInstanceRef.current;
-          if (!instance || !data || data.length < 2) return;
+    // ── Imperativo: ejecutarAnimacion ─────────────────────────────────────
+    useImperativeHandle(ref, () => ({
+      ejecutarAnimacion: () => {
+        if (mostrarEstaticoRef.current || multiDataRef.current) return;
+        const chart = instanceRef.current;
+        const currentData = dataRef.current;
+        if (!chart || !currentData || currentData.length < 2) return;
 
-          if (animationRef.current) cancelAnimationFrame(animationRef.current);
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
 
-          const totalDuration = duracionAnimacion;
-          let startTime: number | null = null;
+        let startTime: number | null = null;
 
-          const animate = (timestamp: number) => {
-            if (!startTime) startTime = timestamp;
-            const elapsed = timestamp - startTime;
-            const progress = Math.min(elapsed / totalDuration, 1);
+        const animate = (timestamp: number) => {
+          if (!startTime) startTime = timestamp;
+          const elapsed  = timestamp - startTime;
+          const progress = Math.min(elapsed / duracionAnimacion, 1);
 
-            const totalSegments = data.length - 1;
-            const currentSegmentFloat = progress * totalSegments;
-            const currentSegmentIndex = Math.floor(currentSegmentFloat);
-            const segmentProgress = currentSegmentFloat - currentSegmentIndex;
+          const totalSegments       = currentData.length - 1;
+          const currentSegmentFloat = progress * totalSegments;
+          const currentSegmentIndex = Math.floor(currentSegmentFloat);
+          const segmentProgress     = currentSegmentFloat - currentSegmentIndex;
 
-            const currentData = data.slice(0, currentSegmentIndex + 1);
+          const slice = currentData.slice(0, currentSegmentIndex + 1);
 
-            if (currentSegmentIndex < totalSegments) {
-              const p1 = data[currentSegmentIndex];
-              const p2 = data[currentSegmentIndex + 1];
-              const interpolatedX = p1[0] + (p2[0] - p1[0]) * segmentProgress;
-              const interpolatedY = p1[1] + (p2[1] - p1[1]) * segmentProgress;
-              currentData.push([interpolatedX, interpolatedY]);
-            }
+          if (currentSegmentIndex < totalSegments) {
+            const p1 = currentData[currentSegmentIndex];
+            const p2 = currentData[currentSegmentIndex + 1];
+            slice.push([
+              p1[0] + (p2[0] - p1[0]) * segmentProgress,
+              p1[1] + (p2[1] - p1[1]) * segmentProgress,
+            ]);
+          }
 
-            instance.setOption({ series: [{ data: currentData }] });
+          chart.setOption({ series: [{ data: slice }] });
 
-            if (progress < 1) {
-              animationRef.current = requestAnimationFrame(animate);
-            }
-          };
+          if (progress < 1) {
+            animationRef.current = requestAnimationFrame(animate);
+          }
+        };
 
-          animationRef.current = requestAnimationFrame(animate);
-        },
-        resize: () => {
-          chartInstanceRef.current?.resize();
-        },
-      }),
-      [data, mostrarEstatico, multiData],
-    );
+        animationRef.current = requestAnimationFrame(animate);
+      },
+
+      resize: () => {
+        instanceRef.current?.resize();
+      },
+    })); // sin dependencias — usa refs para leer valores actuales
 
     return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <div
-          ref={chartRef}
-          style={{ width: "100%", height: "100%", minHeight: "200px" }}
-        />
+      <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div ref={chartRef} style={{ width: "100%", height: "100%", minHeight: "200px" }} />
       </div>
     );
   },

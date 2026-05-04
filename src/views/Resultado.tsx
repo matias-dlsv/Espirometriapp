@@ -32,12 +32,14 @@ const calcularZScore = (
 };
 
 // Devuelve etiqueta clínica y color para el Z-score
-const interpretarZ = (z: number): { label: string; color: string } => {
+const interpretarZ = (
+  z: number,
+): { label: string; color: string } => {
   if (isNaN(z)) return { label: "—", color: "#333" };
   if (z >= -1.645) return { label: "Normal", color: "#10b981" };
-  if (z >= -2.5) return { label: "Leve ↓", color: "#f59e0b" };
-  if (z >= -4.0) return { label: "Moderado ↓", color: "#f97316" };
-  return { label: "Grave ↓", color: "#ef4444" };
+  if (z >= -2.5)   return { label: "Leve ↓",     color: "#f59e0b" };
+  if (z >= -4.0)   return { label: "Moderado ↓", color: "#f97316" };
+  return             { label: "Grave ↓",          color: "#ef4444" };
 };
 
 // ============================================================
@@ -55,28 +57,21 @@ const encontrarMejor = (
 
 export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
   const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
-  const patronActivo = usePacientStore((state) => state.patronActivo);
-  const faseActual = usePacientStore((state) => state.faseActual);
-  const setFase = usePacientStore((state) => state.setFase);
+  const patronActivo   = usePacientStore((state) => state.patronActivo);
+  const faseActual     = usePacientStore((state) => state.faseActual);
+  const setFase        = usePacientStore((state) => state.setFase);
 
-  const maniobrasPreRaw = pacienteActual?.espirometrias?.[0]?.maniobras ?? [];
-  const maniobrasPostRaw =
-    pacienteActual?.espirometrias?.[0]?.maniobrasPost ?? [];
-  const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
+  const maniobrasPreRaw  = pacienteActual?.espirometrias?.[0]?.maniobras     ?? [];
+  const maniobrasPostRaw = pacienteActual?.espirometrias?.[0]?.maniobrasPost ?? [];
+  const parametros       = pacienteActual?.espirometrias?.[0]?.parametros    ?? null;
 
   // Valores teóricos (M) y parámetros LMS extraídos de las tablas GLI 2012
-  const fvcMLS = parametros?.fvc ?? { m: 0, l: 0, s: 1 };
-  const fev1MLS = parametros?.fev1 ?? { m: 0, l: 0, s: 1 };
+  const fvcMLS     = parametros?.fvc     ?? { m: 0, l: 0, s: 1 };
+  const fev1MLS    = parametros?.fev1    ?? { m: 0, l: 0, s: 1 };
   const fev1fvcMLS = parametros?.fev1fvc ?? { m: 0, l: 0, s: 1 };
 
-  const mejorPre = useMemo(
-    () => encontrarMejor(maniobrasPreRaw),
-    [maniobrasPreRaw],
-  );
-  const mejorPost = useMemo(
-    () => encontrarMejor(maniobrasPostRaw),
-    [maniobrasPostRaw],
-  );
+  const mejorPre  = useMemo(() => encontrarMejor(maniobrasPreRaw),  [maniobrasPreRaw]);
+  const mejorPost = useMemo(() => encontrarMejor(maniobrasPostRaw), [maniobrasPostRaw]);
 
   const mejorActual = faseActual === "pre" ? mejorPre : mejorPost;
   const indiceActual =
@@ -93,27 +88,27 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
         {
           variable: "FVC",
           unidad: "L",
-          real: mejorActual.indices?.fvc ?? fvcMLS.m,
+          real:     mejorActual.indices?.fvc     ?? fvcMLS.m,
           realPost: mejorPost?.indices?.fvc,
-          teorico: fvcMLS.m,
-          mls: fvcMLS,
+          teorico:  fvcMLS.m,
+          mls:      fvcMLS,
         },
         {
           variable: "FEV1",
           unidad: "L",
-          real: mejorActual.indices?.fev1 ?? fev1MLS.m,
+          real:     mejorActual.indices?.fev1     ?? fev1MLS.m,
           realPost: mejorPost?.indices?.fev1,
-          teorico: fev1MLS.m,
-          mls: fev1MLS,
+          teorico:  fev1MLS.m,
+          mls:      fev1MLS,
         },
         {
           variable: "FEV1/FVC",
           unidad: "%",
-          real: mejorActual.indices?.fev1fvc ?? fev1fvcMLS.m,
+          real:     mejorActual.indices?.fev1fvc     ?? fev1fvcMLS.m,
           realPost: mejorPost?.indices?.fev1fvc,
-          teorico: fev1fvcMLS.m,
-          mls: fev1fvcMLS,
-          esRatio: true,
+          teorico:  fev1fvcMLS.m,
+          mls:      fev1fvcMLS,
+          esRatio:  true,
         },
       ]
     : [];
@@ -189,16 +184,8 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
             </thead>
             <tbody>
               {filas.map(
-                ({
-                  variable,
-                  unidad,
-                  real,
-                  realPost,
-                  teorico,
-                  mls,
-                  esRatio,
-                }) => {
-                  const pctPre = teorico > 0 ? (real / teorico) * 100 : 0;
+                ({ variable, unidad, real, realPost, teorico, mls, esRatio }) => {
+                  const pctPre  = teorico > 0 ? (real / teorico) * 100 : 0;
                   const pctPost =
                     realPost && teorico > 0 ? (realPost / teorico) * 100 : null;
 
@@ -228,9 +215,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                       </td>
                       {hayPost && (
                         <td className={styles.postCell}>
-                          {realPost
-                            ? formatear(realPost, esRatio, unidad)
-                            : "—"}
+                          {realPost ? formatear(realPost, esRatio, unidad) : "—"}
                         </td>
                       )}
                       <td className={styles.teoricoCell}>

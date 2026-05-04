@@ -1,27 +1,19 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import {
-  writeTextFile,
-  readTextFile,
-  BaseDirectory,
-  exists,
-  mkdir,
-} from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import {
   usePacientStore,
   Paciente,
   DatosEspirometria,
 } from "../store/pacientStore";
-import { AppView } from "../App"; // <-- Importa el tipo AppView
+import { AppView } from "../App";
+import { crearPacienteAleatorio } from "../utils/pacienteAleatorio";
 import styles from "./PacientForm.module.css";
 
-// 1. Creamos la interfaz para recibir onNavigate
 interface PacientFormProps {
   onNavigate: (view: AppView) => void;
 }
 
-// 2. Pasamos la prop al componente
 function PacientForm({ onNavigate }: PacientFormProps) {
   const [nombre, setNombre] = useState("");
   const [edad, setEdad] = useState("");
@@ -29,208 +21,204 @@ function PacientForm({ onNavigate }: PacientFormProps) {
   const [talla, setTalla] = useState("");
   const [raza, setRaza] = useState("");
   const [peso, setPeso] = useState("");
+  const [cargandoAleatorio, setCargandoAleatorio] = useState(false);
 
-  const addPaciente = usePacientStore((state) => state.addPaciente);
-  const pacientes = usePacientStore((state) => state.pacientes);
-  const seleccionarPaciente = usePacientStore(
-    (state) => state.seleccionarPaciente,
-  );
+  const addPaciente        = usePacientStore((state) => state.addPaciente);
+  const pacientes          = usePacientStore((state) => state.pacientes);
+  const seleccionarPaciente = usePacientStore((state) => state.seleccionarPaciente);
 
   const validar = (): string | null => {
     if (!nombre.trim() || !edad || !sexo || !talla || !raza || !peso)
       return "Por favor completa todos los campos";
     if (pacientes.some((p) => p.nombre.toLowerCase() === nombre.toLowerCase()))
       return "Este paciente ya existe";
-
-    const edadNum = Number(edad);
+    const edadNum  = Number(edad);
     const tallaNum = Number(talla);
-    const pesoNum = Number(peso);
-
-    if (isNaN(edadNum) || edadNum < 3 || edadNum > 100)
-      return "Ingresa una edad real (entre 3 y 100 años)";
-    if (isNaN(tallaNum) || tallaNum < 20 || tallaNum > 300)
-      return "Ingresa una altura real en cm (entre 20 y 300)";
-    if (isNaN(pesoNum) || pesoNum < 20 || pesoNum > 300)
-      return "Ingresa un peso real en kg (entre 20 y 300)";
-
+    const pesoNum  = Number(peso);
+    if (isNaN(edadNum)  || edadNum  < 3   || edadNum  > 100) return "Edad inválida (3–100)";
+    if (isNaN(tallaNum) || tallaNum < 20  || tallaNum > 300) return "Talla inválida en cm (20–300)";
+    if (isNaN(pesoNum)  || pesoNum  < 20  || pesoNum  > 300) return "Peso inválido en kg (20–300)";
     return null;
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     const mensajeError = validar();
     if (mensajeError) {
-      toast.error(mensajeError, {
-        style: { background: "#202020", color: "#fff" },
-      });
+      toast.error(mensajeError, { style: { background: "#1a1a1a", color: "#fff" } });
       return;
     }
-
-    const edadNum = Number(edad);
+    const edadNum  = Number(edad);
     const tallaNum = Number(talla);
-    const pesoNum = Number(peso);
-
+    const pesoNum  = Number(peso);
     try {
-      // Se calculan los datos en Rust automáticamente
       const espirometriaDefault: DatosEspirometria = await invoke(
         "procesar_nuevo_paciente",
-        {
-          datos: {
-            nombre,
-            edad: edadNum,
-            talla: tallaNum,
-            peso: pesoNum,
-            sexo,
-            raza,
-          },
-        },
+        { datos: { nombre, edad: edadNum, talla: tallaNum, peso: pesoNum, sexo, raza } },
       );
-
       const nuevoPaciente: Paciente = {
         id: crypto.randomUUID(),
-        nombre,
-        edad: edadNum,
-        sexo,
-        talla: tallaNum,
-        raza,
-        peso: pesoNum,
+        nombre, edad: edadNum, sexo, talla: tallaNum, raza, peso: pesoNum,
         fechaRegistro: new Date().toLocaleDateString(),
         espirometrias: [espirometriaDefault],
       };
-
-      const fileName = "pacientes_db.json";
-      const directory = BaseDirectory.AppData;
-
-      if (!(await exists("", { baseDir: directory }))) {
-        await mkdir("", { baseDir: directory, recursive: true });
-      }
-
-      let dataDisco: Paciente[] = [];
-
-      if (await exists(fileName, { baseDir: directory })) {
-        const contenido = await readTextFile(fileName, { baseDir: directory });
-        dataDisco = JSON.parse(contenido);
-      }
-
-      dataDisco.push(nuevoPaciente);
-
-      await writeTextFile(fileName, JSON.stringify(dataDisco, null, 2), {
-        baseDir: directory,
-      });
-
       addPaciente(nuevoPaciente);
-      seleccionarPaciente(nuevoPaciente.id); // NUEVO
-
-      setNombre("");
-      setEdad("");
-      setSexo("");
-      setTalla("");
-      setRaza("");
-      setPeso("");
-
-      toast.success("Paciente guardado exitosamente", {
-        duration: 2000,
-        position: "bottom-right",
-        style: { background: "#202020", color: "#fff" },
-      });
-
-      // 3. ¡Navegamos a la siguiente vista automáticamente!
+      seleccionarPaciente(nuevoPaciente.id);
+      toast.success(`Paciente ${nombre} creado`, { duration: 2000, position: "bottom-right", style: { background: "#1a1a1a", color: "#fff" } });
       onNavigate("maniobra");
     } catch (err) {
-      console.error("Error detallado:", err);
-      toast.error("Error al procesar los datos con Rust");
+      console.error(err);
+      toast.error("Error al procesar los datos");
+    }
+  };
+
+  const handleAleatorio = async () => {
+    if (cargandoAleatorio) return;
+    setCargandoAleatorio(true);
+    try {
+      const paciente = await crearPacienteAleatorio(addPaciente, seleccionarPaciente, pacientes);
+      toast.success(`Paciente: ${paciente.nombre}`, { duration: 2000, position: "bottom-right", style: { background: "#1a1a1a", color: "#fff" } });
+      onNavigate("maniobra");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al generar paciente aleatorio");
+    } finally {
+      setCargandoAleatorio(false);
     }
   };
 
   return (
-    <form onSubmit={onSubmit} className={styles.formContainer}>
-      {/* ... (Todos tus inputs quedan exactamente igual que antes) ... */}
-      <input
-        type="text"
-        placeholder="Nombre del Paciente"
-        value={nombre}
-        onChange={(e) => setNombre(e.target.value)}
-        autoFocus
-        className={`${styles.inputField} ${styles.textInput}`}
-      />
+    <div className={styles.formWrapper}>
+      {/* Columna izquierda: formulario manual */}
+      <form onSubmit={onSubmit} className={styles.formCard}>
+        <div className={styles.cardHeader}>
+          <div className={styles.cardIcon}>✦</div>
+          <div>
+            <h2 className={styles.cardTitle}>Paciente Manual</h2>
+            <p className={styles.cardSubtitle}>Ingresa los datos del paciente</p>
+          </div>
+        </div>
 
-      <div className={styles.columnsWrapper}>
-        <div className={styles.columnGroup}>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>Nombre completo</label>
           <input
-            type="number"
-            placeholder="Edad (años)"
-            value={edad}
-            onChange={(e) => setEdad(e.target.value)}
-            className={`${styles.inputField} ${styles.textInput}`}
+            type="text"
+            placeholder="Ej: Juan Pérez"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            autoFocus
+            className={styles.input}
           />
-          <input
-            type="number"
-            placeholder="Talla (cm)"
-            value={talla}
-            onChange={(e) => setTalla(e.target.value)}
-            className={`${styles.inputField} ${styles.textInput}`}
-          />
-          <select
-            value={raza}
-            onChange={(e) => setRaza(e.target.value)}
-            className={styles.inputField}
-          >
-            <option value="" className={styles.optionItem}>
-              Raza / Etnia
-            </option>
-            <option value="Caucasico" className={styles.optionItem}>
-              Caucásico
-            </option>
-            <option value="Afrodescendiente" className={styles.optionItem}>
-              Afrodescendiente
-            </option>
-            <option value="Asiatico NE" className={styles.optionItem}>
-              Asiático (Noreste)
-            </option>
-            <option value="Asiatico SE" className={styles.optionItem}>
-              Asiático (Sureste)
-            </option>
-            <option
-              value="Otra Raza / Etnia mixta"
-              className={styles.optionItem}
-            >
-              Otro
-            </option>
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Edad</label>
+            <input
+              type="number"
+              placeholder="años"
+              value={edad}
+              onChange={(e) => setEdad(e.target.value)}
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Sexo</label>
+            <select value={sexo} onChange={(e) => setSexo(e.target.value)} className={styles.input}>
+              <option value="">Seleccionar</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+            </select>
+          </div>
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Talla (cm)</label>
+            <input
+              type="number"
+              placeholder="cm"
+              value={talla}
+              onChange={(e) => setTalla(e.target.value)}
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Peso (kg)</label>
+            <input
+              type="number"
+              placeholder="kg"
+              value={peso}
+              onChange={(e) => setPeso(e.target.value)}
+              className={styles.input}
+            />
+          </div>
+        </div>
+
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>Raza / Etnia</label>
+          <select value={raza} onChange={(e) => setRaza(e.target.value)} className={styles.input}>
+            <option value="">Seleccionar</option>
+            <option value="Caucasico">Caucásico</option>
+            <option value="Afrodescendiente">Afrodescendiente</option>
+            <option value="Asiatico NE">Asiático (Noreste)</option>
+            <option value="Asiatico SE">Asiático (Sureste)</option>
+            <option value="Otra Raza / Etnia mixta">Otro / Mixto</option>
           </select>
         </div>
 
-        <div className={styles.columnGroup}>
-          <select
-            value={sexo}
-            onChange={(e) => setSexo(e.target.value)}
-            className={styles.inputField}
-          >
-            <option value="" className={styles.optionItem}>
-              Sexo
-            </option>
-            <option value="Masculino" className={styles.optionItem}>
-              Masculino
-            </option>
-            <option value="Femenino" className={styles.optionItem}>
-              Femenino
-            </option>
-          </select>
-          <input
-            type="number"
-            placeholder="Peso (Kg)"
-            value={peso}
-            onChange={(e) => setPeso(e.target.value)}
-            className={`${styles.inputField} ${styles.textInput}`}
-          />
-        </div>
+        <button type="submit" className={styles.submitBtn}>
+          Continuar →
+        </button>
+      </form>
+
+      {/* Divisor */}
+      <div className={styles.divider}>
+        <div className={styles.dividerLine} />
+        <span className={styles.dividerText}>o</span>
+        <div className={styles.dividerLine} />
       </div>
 
-      {/* Cambiamos el texto del botón para que tenga más sentido */}
-      <button type="submit" className={styles.submitButton}>
-        Ingresar Paciente
-      </button>
-    </form>
+      {/* Columna derecha: aleatorio */}
+      <div className={styles.randomCard}>
+        <div className={styles.randomGlow} />
+        <div className={styles.cardHeader}>
+          <div className={styles.cardIconRandom}>⟳</div>
+          <div>
+            <h2 className={styles.cardTitle}>Paciente Aleatorio</h2>
+            <p className={styles.cardSubtitle}>Genera un paciente con datos realistas</p>
+          </div>
+        </div>
+
+        <div className={styles.randomFeatures}>
+          {[
+            ["Nombre", "Generado aleatoriamente"],
+            ["Edad", "18 – 75 años"],
+            ["Sexo", "Masculino / Femenino"],
+            ["Talla", "Según sexo y distribución real"],
+            ["Raza / Etnia", "Con proporciones poblacionales"],
+            ["Índices GLI", "Calculados desde tablas GLI 2012"],
+          ].map(([key, val]) => (
+            <div key={key} className={styles.featureRow}>
+              <span className={styles.featureKey}>{key}</span>
+              <span className={styles.featureVal}>{val}</span>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={handleAleatorio}
+          disabled={cargandoAleatorio}
+          className={styles.randomBtn}
+        >
+          {cargandoAleatorio ? (
+            <span className={styles.spinner}>⟳</span>
+          ) : (
+            "Generar y continuar →"
+          )}
+        </button>
+      </div>
+    </div>
   );
 }
 
