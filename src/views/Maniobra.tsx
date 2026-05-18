@@ -289,7 +289,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     const elipse = (
       cX: number,
       rX: number,
-      rY: number,
+      _rY: number,
       n = 120,
     ): number[][] => {
       const pts: number[][] = [];

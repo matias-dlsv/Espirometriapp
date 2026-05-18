@@ -1,6 +1,5 @@
 import styles from "./WelcomeScreen.module.css";
 import logo from "../assets/E.-de-Kinesiología.png";
-import espiroLogo from "../assets/Logo moderno de EspiroSim.png";
 
 interface WelcomeProps {
   onNavigate: (view: "custom" | "clinical") => void;
