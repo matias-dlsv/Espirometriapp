@@ -5,6 +5,7 @@ import { usePacientStore } from "../store/pacientStore";
 import { AppView, NavigationPayload } from "../App";
 import {
   aplicarPatron,
+  calcularRespuestaBD,
   generarIndicesAleatorios,
 } from "../utils/transformaciones";
 
@@ -27,9 +28,12 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
   const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
   const patronActivo = usePacientStore((state) => state.patronActivo);
+  const faseActual = usePacientStore((state) => state.faseActual);
 
   const maniobrasGuardadas =
-    pacienteActual?.espirometrias?.[0]?.maniobras?.length ?? 0;
+    faseActual === "pre"
+      ? (pacienteActual?.espirometrias?.[0]?.maniobras?.length ?? 0)
+      : (pacienteActual?.espirometrias?.[0]?.maniobrasPost?.length ?? 0);
 
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
   const fvc = parametros?.fvc.m ?? 5.241;
@@ -52,16 +56,28 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     idxInicioExhalacionForzada,
     vbe,
   } = useMemo(() => {
+    // ── 1. Generar índices en el rango Z correcto para la fase actual ─────────
+    //    En fase "post" los rangos Z son más favorables según el tipo de respuesta BD.
     const indicesManiobra = generarIndicesAleatorios(
       fvc,
       fev1,
       mls,
       patronActivo,
+      faseActual, // ← determina si se usan rangos pre o post-BD
     );
 
+    // ── 2. Factor visual del scoop obstructivo (solo afecta la curva) ─────────
+    let factorObstruccion = 1;
+    if (faseActual === "post" && patronActivo) {
+      const bd = calcularRespuestaBD(patronActivo.respuestaBD);
+      factorObstruccion = bd.factorObstruccion;
+    }
+
+    // Valores para construir la curva
     const fvcM = indicesManiobra.fvc;
     const fev1M = indicesManiobra.fev1;
 
+    // ── 3. Construir curva flujo-volumen ──────────────────────────────────────
     const peakFlujo = fev1M * (1.45 + Math.random() * 0.15);
     const peakVol = fvcM * (0.13 + Math.random() * 0.05);
 
@@ -185,27 +201,20 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       ...inhalacionPostForzada,
     ];
 
-    // ── Volumen/Tiempo ────────────────────────────────────────────────────
     const tiempos = [
       0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6,
       0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,
       10.0,
     ];
 
-    const propFvc: number[] = [
-  0,    0.25, 0.42, 0.55, 0.64, 0.71, 0.79, 0.86, 0.905, 0.928,   // 0–0.15s  empinado
-  0.944, 0.956, 0.965, 0.972, 0.978, 0.982, 0.985, 0.988,          // 0.2–0.9s desaceleración gradual
-  0.9905, 0.9925,                                                     // 1.0–1.5s
-  0.9945, 0.9960, 0.9970, 0.9980, 0.9987, 0.9992,                   // 2.0–5.0s
-  0.9995, 0.9997, 0.9999, 1.0,                                       // 6.0–10.0s
-];
+    const propFvc = [
+      0, 0.01, 0.02, 0.04, 0.05, 0.06, 0.08, 0.11, 0.16, 0.21, 0.3, 0.38, 0.45,
+      0.51, 0.57, 0.62, 0.66, 0.7, 0.76, 0.83, 0.91, 0.95, 0.97, 0.99, 0.995,
+      0.998, 0.999, 0.9995, 0.9998, 1.0,
+    ];
 
-    // Curva cóncava suave al inicio usando función potencia
-    // El exponente >1 garantiza arranque lento que acelera (cóncavo)
-    const earlyExponent = 2.8 + Math.random() * 0.8; // 1.8–2.4
+    const earlyExponent = 2.8 + Math.random() * 0.8;
     const tTransFin = 0.25;
-
-    // Volumen objetivo al final de la zona de arranque (para empalme)
     const idxTransFin = tiempos.findIndex((t) => t >= tTransFin);
     const volEnTransFin = propFvc[idxTransFin] * fvcM;
 
@@ -214,9 +223,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
       if (t <= tTransFin) {
         const tNorm = t / tTransFin;
-        // Power ramp: en t=0 vale 0, en t=tTransFin vale volEnTransFin
         const volRamp = volEnTransFin * Math.pow(tNorm, earlyExponent);
-        // Smoothstep blend para empalme continuo en tTransFin
         const blend = tNorm * tNorm * (3 - 2 * tNorm);
         return [t, Math.max(0, volRamp * (1 - blend) + volBase * blend)];
       }
@@ -226,23 +233,29 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
     // Buscar máxima pendiente
     let maxPendiente = 0;
-    let idxMaxPend   = 1;
+    let idxMaxPend = 1;
     for (let i = 1; i < volumenTiempo.length - 1; i++) {
       if (volumenTiempo[i][0] > 0.2) break;
-      const dt   = volumenTiempo[i + 1][0] - volumenTiempo[i - 1][0];
-      const dv   = volumenTiempo[i + 1][1] - volumenTiempo[i - 1][1];
+      const dt = volumenTiempo[i + 1][0] - volumenTiempo[i - 1][0];
+      const dv = volumenTiempo[i + 1][1] - volumenTiempo[i - 1][1];
       const pend = dv / dt;
       if (pend > maxPendiente) {
         maxPendiente = pend;
-        idxMaxPend   = i;
+        idxMaxPend = i;
       }
     }
 
-    // ✅ Extrapolación de la tangente hacia t=0
     const tPico = volumenTiempo[idxMaxPend][0];
     const vPico = volumenTiempo[idxMaxPend][1];
-    const vbe   = Math.max(0, vPico - maxPendiente * tPico);
-    const flujoVolumenFinal = aplicarPatron(flujoVolumen, fvcM, patronActivo);
+    const vbe = Math.max(0, vPico - maxPendiente * tPico);
+
+    // ── 4. Aplicar patrón a la curva (factorObstruccion reduce el scoop post-BD) ──
+    const flujoVolumenFinal = aplicarPatron(
+      flujoVolumen,
+      fvcM,
+      patronActivo,
+      factorObstruccion,
+    );
 
     return {
       datosFlujoVolumen: flujoVolumenFinal,
@@ -252,7 +265,205 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       idxInicioExhalacionForzada,
       vbe,
     };
-  }, [fev1, fvc, mls, patronActivo]);
+  }, [fev1, fvc, mls, patronActivo, faseActual]);
+
+  const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
+
+  // Genera una maniobra completa con índices, curva y VBE
+  const generarUnaManiobra = () => {
+    const indices = generarIndicesAleatorios(
+      fvc,
+      fev1,
+      mls,
+      patronActivo,
+      faseActual,
+    );
+    let factorObstruccion = 1;
+    if (faseActual === "post" && patronActivo) {
+      factorObstruccion = calcularRespuestaBD(
+        patronActivo.respuestaBD,
+      ).factorObstruccion;
+    }
+    const fvcM = indices.fvc;
+    const fev1M = indices.fev1;
+    const peakFlujo = fev1M * (1.45 + Math.random() * 0.15);
+    const peakVol = fvcM * (0.13 + Math.random() * 0.05);
+    const cx = fvcM * 0.55;
+    const rx = fvcM * 0.12;
+    const ry = 0.6;
+    const casiFvc = fvcM * 0.96;
+    const mr = 0.6;
+
+    const elipse = (
+      cX: number,
+      rX: number,
+      rY: number,
+      n = 120,
+    ): number[][] => {
+      const pts: number[][] = [];
+      for (let i = 0; i <= n; i++) {
+        const theta = (i / n) * 2 * Math.PI;
+        const ff = Math.sin(theta) > 0 ? 0.9 : 1.2;
+        pts.push([
+          perturbar(
+            cX + perturbar(rX, 0.02 * mr) * Math.cos(theta),
+            0.005 * mr,
+          ),
+          -perturbar(rY, 0.05 * mr) *
+            Math.sign(Math.sin(theta)) *
+            Math.pow(Math.abs(Math.sin(theta)), ff),
+        ]);
+      }
+      return pts;
+    };
+
+    const b3i: number[][] = [];
+    for (let i = 0; i <= 80; i++) {
+      const theta = (i / 80) * Math.PI;
+      b3i.push([
+        perturbar(cx + perturbar(rx, 0.02 * mr) * Math.cos(theta), 0.005),
+        -perturbar(ry * 1.1, 0.08 * mr) * Math.pow(Math.sin(theta), 0.8),
+      ]);
+    }
+    const b3e: number[][] = [];
+    const cxe = (cx - rx + casiFvc) / 2;
+    const rxe = (casiFvc - (cx - rx)) / 2;
+    for (let i = 1; i <= 100; i++) {
+      const theta = Math.PI + (i / 100) * Math.PI;
+      b3e.push([
+        perturbar(cxe + rxe * Math.cos(theta), 0.005),
+        -perturbar(ry * 1.3, 0.1 * mr) * Math.sin(theta),
+      ]);
+    }
+    const insp: number[][] = [];
+    const cxi = casiFvc / 2;
+    for (let i = 1; i <= 150; i++) {
+      const t = i / 150;
+      const theta = t * Math.PI;
+      insp.push([
+        perturbar(cxi + cxi * Math.cos(theta), 0.005),
+        perturbar(
+          -2.0 * Math.sin(theta) * (1 + 0.3 * Math.sin(theta * 0.5)),
+          0.03 * mr,
+        ),
+      ]);
+    }
+    const exh: number[][] = [];
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30;
+      exh.push([
+        perturbar(t * peakVol, 0.001),
+        perturbar(peakFlujo * Math.pow(t, 0.7), 0.01),
+      ]);
+    }
+    for (let i = 1; i <= 300; i++) {
+      const t = i / 300;
+      const ct = Math.pow(t, 0.7);
+      exh.push([
+        perturbar(peakVol + (fvcM - peakVol) * ct, 0.002),
+        perturbar(peakFlujo * Math.pow(1 - ct, 1.5), 0.01),
+      ]);
+    }
+    const vr = Math.random() * 0.09 + 0.005;
+    const pkInsp = -(fev1M * (0.55 + Math.random() * 0.1));
+    const inh: number[][] = [];
+    for (let i = 0; i <= 200; i++) {
+      const t = i / 200;
+      inh.push([
+        perturbar(fvcM * (1 - t) + vr * t, 0.003),
+        perturbar(
+          pkInsp *
+            Math.sin(Math.PI * Math.pow(t, 0.75)) *
+            (1 - 0.15 * Math.sin(2 * Math.PI * t)),
+          0.02 * mr,
+        ),
+      ]);
+    }
+
+    const flujoVolumen = aplicarPatron(
+      [
+        ...elipse(cx, rx, ry),
+        ...elipse(cx, rx, ry * 1.05),
+        ...b3i,
+        ...b3e,
+        ...insp,
+        ...exh,
+        ...inh,
+      ],
+      fvcM,
+      patronActivo,
+      factorObstruccion,
+    );
+
+    const tiempos = [
+      0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6,
+      0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,
+      10.0,
+    ];
+
+    const propFvc = [
+      0, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.06, 0.09, 0.11, 0.16, 0.21,
+      0.26, 0.3, 0.34, 0.38, 0.42, 0.45, 0.51, 0.59, 0.7, 0.78, 0.84, 0.91,
+      0.95, 0.97, 0.985, 0.992, 0.998, 1.0,
+    ];
+    const earlyExp = 2.8 + Math.random() * 0.8;
+    const tTF = 0.25;
+    const idxTF = tiempos.findIndex((t) => t >= tTF);
+    const volTF = propFvc[idxTF] * fvcM;
+    const volumenTiempo: number[][] = tiempos.map((t, i) => {
+      const vb = propFvc[i] * fvcM;
+      if (t <= tTF) {
+        const tn = t / tTF;
+        const vr2 = volTF * Math.pow(tn, earlyExp);
+        const bl = tn * tn * (3 - 2 * tn);
+        return [t, Math.max(0, vr2 * (1 - bl) + vb * bl)];
+      }
+      return [t, vb];
+    });
+
+    let maxP = 0;
+    let idxMP = 1;
+    for (let i = 1; i < volumenTiempo.length - 1; i++) {
+      if (volumenTiempo[i][0] > 0.2) break;
+      const dt = volumenTiempo[i + 1][0] - volumenTiempo[i - 1][0];
+      const dv = volumenTiempo[i + 1][1] - volumenTiempo[i - 1][1];
+      if (dv / dt > maxP) {
+        maxP = dv / dt;
+        idxMP = i;
+      }
+    }
+    const vbe = Math.max(
+      0,
+      volumenTiempo[idxMP][1] - maxP * volumenTiempo[idxMP][0],
+    );
+
+    return {
+      datosFlujoVolumen: flujoVolumen,
+      datosVolumenTiempo: volumenTiempo,
+      indices,
+      vbe,
+    };
+  };
+
+  const saltarAResultados = () => {
+    if (!pacienteActual) return;
+    for (let i = 0; i < 3; i++) {
+      const m = generarUnaManiobra();
+      guardarManiobra(pacienteActual.id, {
+        datosFlujoVolumen: m.datosFlujoVolumen,
+        datosVolumenTiempo: m.datosVolumenTiempo,
+        criterios: {
+          vtestables: true,
+          esfuerzomaximo: true,
+          volumenextrapolado: true,
+          pefcontinuo: true,
+        },
+        fecha: new Date().toISOString(),
+        indices: m.indices,
+      });
+    }
+    onNavigate("interpolacion");
+  };
 
   const iniciar = () => {
     if (isExamining) return;
@@ -306,7 +517,20 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       <aside className={styles.controlsPanel}>
         <div className={styles.panelHeader}>
           <div>
-            <h2>Maniobra</h2>
+            <h2>
+              Maniobra
+              {faseActual === "post" && (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    fontSize: "0.75rem",
+                    color: "#10b981",
+                  }}
+                >
+                  Post-BD
+                </span>
+              )}
+            </h2>
             {pacienteActual && (
               <span className={styles.patientName}>
                 {pacienteActual.nombre}
@@ -389,6 +613,33 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
           className={styles.nextButton}
         >
           Criterios de aceptabilidad →
+        </button>
+
+        <button
+          onClick={saltarAResultados}
+          disabled={isExamining}
+          style={{
+            marginTop: 8,
+            width: "100%",
+            padding: "10px",
+            background: "transparent",
+            border: "1px solid #334155",
+            borderRadius: 8,
+            color: "#64748b",
+            fontSize: "0.82rem",
+            cursor: "pointer",
+            transition: "color 0.15s, border-color 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#94a3b8";
+            e.currentTarget.style.borderColor = "#475569";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "#64748b";
+            e.currentTarget.style.borderColor = "#334155";
+          }}
+        >
+          Saltar a resultados →
         </button>
       </aside>
     </div>

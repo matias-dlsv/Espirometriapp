@@ -3,6 +3,7 @@ import styles from "./Corregir.module.css";
 import GraficoPaciente from "../components/GraficoPaciente";
 import { AppView, NavigationPayload } from "../App";
 import { usePacientStore } from "../store/pacientStore";
+import TooltipTerm from "../components/ToolTipTerm.tsx";
 
 interface CorregirProps {
   onBack: () => void;
@@ -12,22 +13,22 @@ interface CorregirProps {
 
 export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
-  const pacienteActual  = usePacientStore((state) => state.pacienteSeleccionado);
-  const faseActual      = usePacientStore((state) => state.faseActual);
+  const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
+  const faseActual = usePacientStore((state) => state.faseActual);
 
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
-  const fvc        = parametros?.fvc.m ?? 5.241;
+  const fvc = parametros?.fvc.m ?? 5.241;
 
-  const vbe       = data?.vbe ?? 0;
-  const vbeMl     = Math.round(vbe * 1000);
-  const umbralVBE = Math.max(0.150, fvc * 0.05);
+  const vbe = data?.vbe ?? 0;
+  const vbeMl = Math.round(vbe * 1000);
+  const umbralVBE = Math.max(0.15, fvc * 0.05);
   const vbeCumple = vbe < umbralVBE;
 
   const [criterios, setCriterios] = useState({
-    vtestables:         false,
-    esfuerzomaximo:     false,
+    vtestables: false,
+    esfuerzomaximo: false,
     volumenextrapolado: false,
-    pefcontinuo:        false,
+    pefcontinuo: false,
   });
 
   const todosCumplen = Object.values(criterios).every((v) => v === true);
@@ -36,23 +37,23 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
     setCriterios((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const idxCorte  = data?.idxInicioExhalacionForzada ?? 0;
+  const idxCorte = data?.idxInicioExhalacionForzada ?? 0;
   const datosGris = data?.datosFlujoVolumen.slice(0, idxCorte + 1) ?? [];
-  const datosAzul = data?.datosFlujoVolumen.slice(idxCorte)        ?? [];
+  const datosAzul = data?.datosFlujoVolumen.slice(idxCorte) ?? [];
 
   const handleGuardarYContinuar = () => {
     if (!todosCumplen || !data || !pacienteActual) return;
 
     const cantidadAntes =
       faseActual === "pre"
-        ? (pacienteActual.espirometrias[0]?.maniobras?.length     ?? 0)
+        ? (pacienteActual.espirometrias[0]?.maniobras?.length ?? 0)
         : (pacienteActual.espirometrias[0]?.maniobrasPost?.length ?? 0);
 
     guardarManiobra(pacienteActual.id, {
-      datosFlujoVolumen:  data.datosFlujoVolumen,
+      datosFlujoVolumen: data.datosFlujoVolumen,
       datosVolumenTiempo: data.datosVolumenTiempo,
       criterios,
-      fecha:   new Date().toISOString(),
+      fecha: new Date().toISOString(),
       indices: data.indices,
     });
 
@@ -68,7 +69,10 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   if (!data) {
     return (
       <div className={styles.layout}>
-        <div className={styles.card} style={{ margin: "auto", textAlign: "center" }}>
+        <div
+          className={styles.card}
+          style={{ margin: "auto", textAlign: "center" }}
+        >
           <h2>No hay datos de maniobra disponibles</h2>
           <p>Debe realizar una maniobra primero para poder evaluarla.</p>
           <button onClick={onBack} className={styles.mainActionButton}>
@@ -86,7 +90,7 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           ← Volver
         </button>
 
-        <div className={styles.chartCard}>
+        <div className={`${styles.chartCard} ${styles.chartCardFV}`}>
           <GraficoPaciente
             titulo="Flujo / Volumen"
             ejeX="Vol (L)"
@@ -103,7 +107,7 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           />
         </div>
 
-        <div className={styles.chartCard}>
+        <div className={`${styles.chartCard} ${styles.chartCardFV}`}>
           <GraficoPaciente
             titulo="Volumen / Tiempo"
             ejeX="Tiempo (s)"
@@ -124,7 +128,9 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <div>
             <h2>Revisión</h2>
             {pacienteActual && (
-              <span className={styles.patientName}>{pacienteActual.nombre}</span>
+              <span className={styles.patientName}>
+                {pacienteActual.nombre}
+              </span>
             )}
           </div>
           <button onClick={onBack} className={styles.backButtonOutline}>
@@ -136,33 +142,39 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <div className={styles.card}>
             <span className={styles.label}>Índices de esta maniobra</span>
 
-            {/* Índices principales */}
             <div className={styles.indicesGrid}>
               <div className={styles.indiceItem}>
-                <span className={styles.indiceLabel}>FVC</span>
+                <span className={styles.indiceLabel}>
+                  <TooltipTerm term="FVC" />
+                </span>
                 <span className={styles.indiceValor}>
                   {data.indices.fvc.toFixed(2)} L
                 </span>
               </div>
               <div className={styles.indiceItem}>
-                <span className={styles.indiceLabel}>FEV1</span>
+                <span className={styles.indiceLabel}>
+                  <TooltipTerm term="FEV1" />
+                </span>
                 <span className={styles.indiceValor}>
                   {data.indices.fev1.toFixed(2)} L
                 </span>
               </div>
               <div className={styles.indiceItem}>
-                <span className={styles.indiceLabel}>FEV1/FVC</span>
+                <span className={styles.indiceLabel}>
+                  <TooltipTerm term="FEV1/FVC" />
+                </span>
                 <span className={styles.indiceValor}>
                   {(data.indices.fev1fvc * 100).toFixed(1)}%
                 </span>
               </div>
             </div>
 
-            {/* VBE separado visualmente */}
             <div className={styles.vbeSeparador} />
             <div className={styles.vbeRow}>
               <div className={styles.vbeRowLeft}>
-                <span className={styles.indiceLabel}>VBE</span>
+                <span className={styles.indiceLabel}>
+                  <TooltipTerm term="VBE" />
+                </span>
               </div>
               <span
                 className={styles.indiceValor}
@@ -184,16 +196,24 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <span className={styles.label}>Criterios de Aceptabilidad</span>
           <div className={styles.checkList}>
             {[
-              { key: "vtestables",         label: "3 Vt estables"                      },
-              { key: "esfuerzomaximo",     label: "Esfuerzo máximo"                    },
-              { key: "volumenextrapolado", label: "Volumen extrapolado aceptable (<100ml)"       },
-              { key: "pefcontinuo",        label: "PEF continuo y libre de artefactos" },
+              { key: "vtestables", label: "3 Vt estables" },
+              { key: "esfuerzomaximo", label: "Esfuerzo máximo" },
+              {
+                key: "volumenextrapolado",
+                label: "Volumen extrapolado aceptable (<100ml)",
+              },
+              {
+                key: "pefcontinuo",
+                label: "PEF continuo y libre de artefactos",
+              },
             ].map(({ key, label }) => (
               <label key={key} className={styles.checkItem}>
                 <input
                   type="checkbox"
                   checked={criterios[key as keyof typeof criterios]}
-                  onChange={() => handleToggleCriterio(key as keyof typeof criterios)}
+                  onChange={() =>
+                    handleToggleCriterio(key as keyof typeof criterios)
+                  }
                 />
                 {label}
               </label>

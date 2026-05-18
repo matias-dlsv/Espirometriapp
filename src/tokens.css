@@ -1,0 +1,15 @@
+:root {
+  --color-brand:        #CE0019;
+  --color-brand-hover:  #8A001A;
+  --color-brand-deep:   #A30D12;
+
+  --color-surface-dark: #131E29;
+  --color-surface-mid:  #243746;
+
+  --color-text-base:    #243746;
+  --color-text-muted:   #415364;
+  --color-text-hint:    #758592;
+
+  --color-border:       #D6D1CA;
+  --color-surface:      #F7F5F3;
+}

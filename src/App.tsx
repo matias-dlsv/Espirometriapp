@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "./App.css";
 import { Toaster } from "react-hot-toast";
+import "./tokens.css";
 
 import WelcomeScreen from "./views/WelcomeScreen";
 import CasosClinicos from "./views/CasosClinicos";
@@ -9,6 +10,7 @@ import Maniobra from "./views/Maniobra";
 import Corregir from "./views/Corregir";
 import Interpolacion from "./views/Interpolacion";
 import Resultado from "./views/Resultado";
+import { usePacientStore } from "./store/pacientStore";
 
 export type AppView =
   | "welcome"
@@ -34,22 +36,21 @@ export interface NavigationPayload {
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("welcome");
-  // Guarda de dónde vino el usuario antes de entrar a maniobra.
-  // Solo se actualiza cuando se entra a maniobra desde fuera del ciclo
-  // corregir → maniobra, para que el botón "Volver" siempre regrese
-  // al origen real (clinical o custom).
   const [origenManiobra, setOrigenManiobra] = useState<AppView>("welcome");
   const [navigationData, setNavigationData] =
     useState<NavigationPayload | null>(null);
 
+  // Leer faseActual del store para usarla como key en <Maniobra>
+  // Esto fuerza el remontaje del componente al pasar de pre a post,
+  // garantizando que useMemo se recalcule con los nuevos rangos Z.
+  const faseActual = usePacientStore((state) => state.faseActual);
+
   const handleNavigate = (view: AppView, payload?: NavigationPayload) => {
-    // Registrar origen solo al entrar a maniobra desde fuera del ciclo
     console.log(`[Nav] ${currentView} → ${view}`);
     if (view === "maniobra" && currentView !== "corregir") {
       setOrigenManiobra(currentView);
     }
 
-    // Al volver a maniobra limpiar datos de la maniobra anterior
     if (view === "maniobra") {
       setNavigationData(null);
     } else if (payload) {
@@ -84,8 +85,10 @@ function App() {
         />
       )}
 
+      {/* key={faseActual} fuerza remontaje al cambiar pre → post */}
       {currentView === "maniobra" && (
         <Maniobra
+          key={faseActual}
           onBack={() => setCurrentView(origenManiobra)}
           onNavigate={handleNavigate}
         />

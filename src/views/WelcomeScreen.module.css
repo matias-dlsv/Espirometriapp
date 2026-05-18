@@ -1,13 +1,21 @@
-/* IMPORTANTE: Esto habilita Tailwind dentro de este archivo */
-@import "tailwindcss";
+@reference "tailwindcss";
 
-/* --- LAYOUT GENERAL --- */
 .pageContainer {
-  @apply h-full flex flex-col items-center justify-center bg-neutral-950 relative text-white;
+  @apply h-full flex flex-col items-center justify-center relative;
+  background-color: #ffffff;
+  color: #131E29;
+}
+
+.logo {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  height: 2px;
+  width: auto;
 }
 
 .backgroundDecoration {
-  @apply absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neutral-800 via-neutral-950 to-neutral-950 opacity-40 pointer-events-none;
+  @apply absolute inset-0 opacity-40 pointer-events-none;
 }
 
 .headerSection {
@@ -15,64 +23,54 @@
 }
 
 .mainTitle {
-  @apply text-4xl font-bold text-white mb-2 tracking-tight;
+  @apply text-4xl font-bold mb-2 tracking-tight;
+  color: #131E29;
 }
 
 .subTitle {
-  @apply text-neutral-400;
+  color: #415364;
 }
 
 .cardsGrid {
   @apply z-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl px-6 w-full;
 }
 
-/* --- TARJETA (Lógica Hover nativa) --- */
-
 .cardButton {
-  @apply text-left p-8 rounded-2xl border border-neutral-800 bg-neutral-900/50 backdrop-blur-sm transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer;
+  @apply text-left p-8 rounded-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer;
+  border: 1px solid #D6D1CA;
+  background-color: #ffffff;
+  color: #131E29;
 }
 
-/* Descripción: Por defecto gris oscuro, al hacer hover en la tarjeta (padre) se aclara */
-.cardDescription {
-  @apply text-sm text-neutral-500 leading-relaxed transition-colors;
+.cardButton:hover {
+  background-color: #f7f5f3;
+  border-color: #8A001A;
 }
 
-.cardButton:hover .cardDescription {
-  @apply text-neutral-400;
-}
-
-/* Título: Transición suave */
 .cardTitle {
-  @apply text-xl font-bold text-neutral-200 mb-2 transition-colors;
+  @apply text-xl font-bold mb-2;
+  color: #131E29;
 }
 
-/* Icon Box: Base */
+.cardDescription {
+  @apply text-sm leading-relaxed;
+  color: #415364;
+}
+
 .iconBox {
-  @apply h-12 w-12 rounded-lg mb-4 flex items-center justify-center bg-neutral-800 transition-colors;
+  @apply h-12 w-12 rounded-lg mb-4 flex items-center justify-center;
+  background-color: rgba(138, 0, 26, 0.08);
+  color: #8A001A;
 }
 
 .iconSvg {
-  @apply w-6 h-6 border-2 border-current rounded opacity-75;
+  @apply w-6 h-6;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.75;
 }
 
-/* --- TEMAS DE COLOR (INDIGO VS EMERALD) --- */
-
-/* Lógica INDIGO */
-.indigoTheme {
-  @apply hover:border-indigo-500/50 hover:bg-indigo-500/5;
-}
-
-/* Cuando el padre (.indigoTheme) tiene hover, cambia los hijos (.textIndigo) */
-.indigoTheme:hover .textIndigo {
-  @apply text-indigo-400;
-}
-
-/* Lógica EMERALD */
-.emeraldTheme {
-  @apply hover:border-emerald-500/50 hover:bg-emerald-500/5;
-}
-
-/* Cuando el padre (.emeraldTheme) tiene hover, cambia los hijos (.textEmerald) */
-.emeraldTheme:hover .textEmerald {
-  @apply text-emerald-400;
-}
+.indigoTheme {}
+.emeraldTheme {}
+.textIndigo { color: #8A001A; }
+.textEmerald { color: #8A001A; }

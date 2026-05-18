@@ -3,8 +3,8 @@
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background-color: #111;
-  color: #fff;
+  background-color: #ffffff;
+  color: #131E29;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -14,7 +14,7 @@
   align-items: center;
   gap: 20px;
   padding: 16px 32px;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid #D6D1CA;
   flex-shrink: 0;
 }
 
@@ -22,26 +22,26 @@
   font-size: 1.2rem;
   font-weight: 700;
   margin: 0 0 2px 0;
-  color: #fff;
+  color: #131E29;
 }
 
 .patientName {
   font-size: 0.85rem;
-  color: #3b82f6;
+  color: #8A001A;
   font-weight: 500;
   display: block;
 }
 
 .patronBadge {
   font-size: 0.75rem;
-  color: #10b981;
+  color: #758592;
   display: block;
 }
 
 .backBtn {
   background: transparent;
-  border: 1px solid #333;
-  color: #888;
+  border: 1px solid #D6D1CA;
+  color: #758592;
   padding: 7px 14px;
   border-radius: 6px;
   cursor: pointer;
@@ -51,36 +51,41 @@
 }
 
 .backBtn:hover {
-  color: #fff;
-  border-color: #555;
+  color: #131E29;
+  border-color: #415364;
 }
 
 .content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  min-height: 0;
 }
 
-/* GRÁFICOS */
 .chartsSection {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   padding: 20px 32px;
-  flex: 1;
-  min-height: 0;
+  align-items: start;
+  justify-items: center;
 }
 
 .chartWrapper {
+  width: 100%;                  /* ← llena toda la columna horizontalmente */
+  height: calc(50vw - 52px);   /* ← alto fijo basado en la mitad del viewport */
+  max-height: 380px;            /* ← techo para pantallas muy anchas */
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #2a2a2a;
-  box-shadow: 0 0 0 1px #1e1e1e, 0 0 40px rgba(59, 130, 246, 0.06);
-  min-height: 0;
+  border: 1px solid #D6D1CA;
+  box-shadow: 0 0 0 1px #f0ece8;
 }
 
-/* TABLA */
+
+
+
+
 .tableSection {
   padding: 0 32px 16px 32px;
   flex-shrink: 0;
@@ -98,9 +103,9 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #666;
-  background: #1a1a1a;
-  border-bottom: 1px solid #2a2a2a;
+  color: #D6D1CA;
+  background: #8A001A;
+  border-bottom: 1px solid #D6D1CA;
 }
 
 .resultsTable th:first-child {
@@ -110,8 +115,8 @@
 .resultsTable td {
   padding: 14px 20px;
   text-align: center;
-  border-bottom: 1px solid #1e1e1e;
-  color: #aaa;
+  border-bottom: 1px solid #f0ece8;
+  color: #415364;
 }
 
 .resultsTable td:first-child {
@@ -119,18 +124,17 @@
 }
 
 .bestRow td {
-  background: rgba(59, 130, 246, 0.04);
+  background: rgba(138, 0, 26, 0.04);
 }
 
 .bestRow:hover td {
-  background: rgba(59, 130, 246, 0.08);
+  background: rgba(138, 0, 26, 0.08);
 }
 
 .resultsTable tr:not(.bestRow):hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: #f7f5f3;
 }
 
-/* CELDA MANIOBRA */
 .maniobraCell {
   display: flex;
   align-items: center;
@@ -147,30 +151,29 @@
 .mejorBadge {
   font-size: 0.65rem;
   font-weight: 700;
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(138, 0, 26, 0.08);
+  color: #8A001A;
+  border: 1px solid rgba(138, 0, 26, 0.2);
   padding: 2px 7px;
   border-radius: 4px;
   letter-spacing: 0.05em;
 }
 
 .best {
-  color: #fff;
+  color: #131E29;
   font-weight: 700;
 }
 
-/* FOOTER */
 .footer {
   padding: 14px 32px;
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid #D6D1CA;
   flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
 }
 
 .finishBtn {
-  background: #3b82f6;
+  background: #8A001A;
   color: white;
   border: none;
   padding: 12px 28px;
@@ -182,13 +185,13 @@
 }
 
 .finishBtn:hover {
-  background: #2563eb;
+  background: #CE0019;
 }
 
 .empty {
   margin: auto;
   text-align: center;
-  color: #888;
+  color: #758592;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -196,17 +199,16 @@
 }
 
 .empty h2 {
-  color: #fff;
+  color: #131E29;
 }
 
 @media (max-width: 1100px) {
   .chartsSection {
     grid-template-columns: 1fr;
-    flex: none;
-    min-height: 500px;
+    padding: 16px 20px;
   }
 
-  .content {
-    overflow-y: auto;
+  .chartWrapper {
+    width: min(100%, calc(100vh - 48px));
   }
 }

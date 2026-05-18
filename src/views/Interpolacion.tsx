@@ -20,7 +20,6 @@ export default function Interpolacion({
 
   const faseActual = usePacientStore((state) => state.faseActual);
 
-  // Cambia esta línea:
   const maniobrasGuardadas =
     faseActual === "pre"
       ? (pacienteActual?.espirometrias?.[0]?.maniobras ?? [])
@@ -43,12 +42,14 @@ export default function Interpolacion({
     }));
   }, [maniobrasGuardadas, fvc, fev1, fev1fvc]);
 
+  // Mejor maniobra: mayor FVC + FEV1
   const mejorManiobraId = useMemo(() => {
     if (maniobras.length === 0) return null;
-    const perfecta = maniobras.find((m) =>
-      Object.values(m.criterios).every(Boolean),
-    );
-    return perfecta?.id ?? maniobras[0].id;
+    return maniobras.reduce((mejor, actual) => {
+      const sumaActual = actual.indices.fvc + actual.indices.fev1;
+      const sumaMejor = mejor.indices.fvc + mejor.indices.fev1;
+      return sumaActual > sumaMejor ? actual : mejor;
+    }).id;
   }, [maniobras]);
 
   if (maniobras.length === 0) {
@@ -64,9 +65,7 @@ export default function Interpolacion({
       </div>
     );
   }
-  console.log("maniobras:", maniobras.length);
-  console.log("pacienteActual:", pacienteActual?.nombre);
-  console.log("faseActual:", faseActual);
+
   return (
     <div className={styles.container}>
       {/* HEADER */}

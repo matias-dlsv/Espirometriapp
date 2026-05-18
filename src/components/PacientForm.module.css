@@ -1,4 +1,3 @@
-/* ── Layout principal: dos tarjetas lado a lado ─────────────────────────── */
 .formWrapper {
   display: flex;
   align-items: stretch;
@@ -8,7 +7,6 @@
   margin: 0 auto;
 }
 
-/* ── Tarjeta compartida ──────────────────────────────────────────────────── */
 .formCard,
 .randomCard {
   flex: 1;
@@ -16,8 +14,8 @@
   flex-direction: column;
   gap: 20px;
   padding: 36px 32px;
-  background: #0f0f0f;
-  border: 1px solid #1f1f1f;
+  background: #ffffff;
+  border: 1px solid #D6D1CA;
 }
 
 .formCard {
@@ -29,39 +27,38 @@
   border-radius: 0 16px 16px 0;
   position: relative;
   overflow: hidden;
+  background: #f7f5f3;
 }
 
-/* Glow sutil en la tarjeta aleatoria */
 .randomGlow {
   position: absolute;
   top: -60px;
   right: -60px;
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(138, 0, 26, 0.05) 0%, transparent 70%);
   pointer-events: none;
 }
 
-/* ── Header de cada tarjeta ─────────────────────────────────────────────── */
 .cardHeader {
   display: flex;
   align-items: center;
   gap: 14px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #1f1f1f;
+  border-bottom: 1px solid #D6D1CA;
 }
 
 .cardIcon {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
+  background: #f7f5f3;
+  border: 1px solid #D6D1CA;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  color: #3b82f6;
+  color: #8A001A;
   flex-shrink: 0;
 }
 
@@ -69,31 +66,30 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(138, 0, 26, 0.08);
+  border: 1px solid rgba(138, 0, 26, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
-  color: #10b981;
+  color: #8A001A;
   flex-shrink: 0;
 }
 
 .cardTitle {
   font-size: 1rem;
   font-weight: 700;
-  color: #fff;
+  color: #131E29;
   margin: 0 0 2px 0;
   letter-spacing: -0.01em;
 }
 
 .cardSubtitle {
   font-size: 0.78rem;
-  color: #555;
+  color: #758592;
   margin: 0;
 }
 
-/* ── Campos del formulario ──────────────────────────────────────────────── */
 .fieldGroup {
   display: flex;
   flex-direction: column;
@@ -105,14 +101,14 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #555;
+  color: #758592;
 }
 
 .input {
   width: 100%;
-  background: #161616;
-  color: #e5e5e5;
-  border: 1px solid #252525;
+  background: #ffffff;
+  color: #131E29;
+  border: 1px solid #D6D1CA;
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 0.9rem;
@@ -123,12 +119,12 @@
 }
 
 .input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #8A001A;
+  box-shadow: 0 0 0 3px rgba(138, 0, 26, 0.1);
 }
 
 .input::placeholder {
-  color: #333;
+  color: #D6D1CA;
 }
 
 .row {
@@ -137,11 +133,10 @@
   gap: 12px;
 }
 
-/* ── Botón submit ───────────────────────────────────────────────────────── */
 .submitBtn {
   margin-top: auto;
-  background: #3b82f6;
-  color: #fff;
+  background: #8A001A;
+  color: #ffffff;
   border: none;
   border-radius: 8px;
   padding: 12px 20px;
@@ -153,14 +148,13 @@
 }
 
 .submitBtn:hover {
-  background: #2563eb;
+  background: #CE0019;
 }
 
 .submitBtn:active {
   transform: scale(0.99);
 }
 
-/* ── Divisor central ────────────────────────────────────────────────────── */
 .divider {
   display: flex;
   flex-direction: column;
@@ -174,18 +168,17 @@
 .dividerLine {
   flex: 1;
   width: 1px;
-  background: #1f1f1f;
+  background: #D6D1CA;
 }
 
 .dividerText {
   font-size: 0.7rem;
-  color: #333;
+  color: #758592;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
-/* ── Tarjeta aleatoria: lista de features ───────────────────────────────── */
 .randomFeatures {
   display: flex;
   flex-direction: column;
@@ -199,7 +192,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 1px solid #161616;
+  border-bottom: 1px solid #f0ece8;
 }
 
 .featureKey {
@@ -207,22 +200,21 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #444;
+  color: #758592;
   flex-shrink: 0;
 }
 
 .featureVal {
   font-size: 0.82rem;
-  color: #666;
+  color: #415364;
   text-align: right;
 }
 
-/* ── Botón aleatorio ────────────────────────────────────────────────────── */
 .randomBtn {
   margin-top: auto;
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(138, 0, 26, 0.06);
+  color: #8A001A;
+  border: 1px solid rgba(138, 0, 26, 0.2);
   border-radius: 8px;
   padding: 12px 20px;
   font-size: 0.9rem;
@@ -233,8 +225,8 @@
 }
 
 .randomBtn:hover:not(:disabled) {
-  background: rgba(16, 185, 129, 0.18);
-  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(138, 0, 26, 0.12);
+  border-color: rgba(138, 0, 26, 0.35);
 }
 
 .randomBtn:active:not(:disabled) {
@@ -252,11 +244,6 @@
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }

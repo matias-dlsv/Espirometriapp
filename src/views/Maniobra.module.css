@@ -4,47 +4,41 @@
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: #111;
-  color: #fff;
+  background-color: #ffffff;
+  color: #131E29;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* COLUMNA IZQUIERDA */
 .chartsColumn {
-  height: 100%;
+  height: 100%;          /* ← restaurar a 100% */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 24px;
   gap: 20px;
 }
 
 .chartCard {
-  width: 100%;
-  height: 70vh;
-  max-height: 520px;
+  /* El chart nunca superará el ancho de la columna NI el alto del viewport */
+  width: min(95%, calc(100vh - 48px));
+  aspect-ratio: 1 / 1;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #2a2a2a;
-  box-shadow:
-    0 0 0 1px #1e1e1e,
-    0 0 40px rgba(59, 130, 246, 0.08);
+  border: 1px solid #D6D1CA;
+  box-shadow: 0 0 0 1px #8A001A;
 }
-
-/* COLUMNA DERECHA */
 .controlsPanel {
-  background-color: #1a1a1a;
-  border-left: 1px solid #2a2a2a;
-  padding: 28px;
+  background-color: #f7f5f3;
+  border-left: 1px solid #D6D1CA;
+  padding: 20px 24px;   /* ← era 28px */
   height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;            /* ← era 16px */
 }
 
-/* HEADER */
 .panelHeader {
   display: flex;
   justify-content: space-between;
@@ -55,42 +49,40 @@
 .panelHeader h2 {
   font-size: 1.4rem;
   margin: 0 0 4px 0;
-  color: #fff;
+  color: #131E29;
   font-weight: 700;
 }
 
 .patientName {
   font-size: 0.85rem;
-  color: #3b82f6;
+  color: #8A001A;
   font-weight: 500;
 }
 
-/* CARDS */
 .card {
-  background-color: #222;
-  border: 1px solid #2a2a2a;
+  background-color: #ffffff;
+  border: 1px solid #D6D1CA;
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;        /* ← era 16px */
 }
 
 .instructionsText {
-  color: #aaa;
+  color: #415364;
   font-size: 1rem;
   margin: 0 0 14px 0;
   text-align: center;
 }
 
 .instructionsText strong {
-  color: #3b82f6;
+  color: #8A001A;
 }
 
-/* BOTÓN INICIAR */
 .mainActionButton {
   width: 100%;
-  background-color: #3b82f6;
+  background-color: #8A001A;
   color: white;
   border: none;
-  padding: 16px;
+  padding: 12px;    
   border-radius: 10px;
   cursor: pointer;
   display: flex;
@@ -101,26 +93,25 @@
 }
 
 .mainActionButton span {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: 1px;
 }
 
-.mainActionButton:hover:not(:disabled) { background-color: #2563eb; }
+.mainActionButton:hover:not(:disabled) { background-color: #CE0019; }
 .mainActionButton:active:not(:disabled) { transform: scale(0.98); }
 .mainActionButton:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* TIMER */
 .timerDisplay {
-  background: #0a0a0a;
-  color: #10b981;
+  font-size: 2.2rem;    /* ← era 3rem */
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #D6D1CA;
+  background: #f0ece8;
+  color: #131E29;
   font-family: monospace;
-  font-size: 3rem;
   font-weight: bold;
   text-align: center;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #1f1f1f;
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -129,43 +120,49 @@
 
 .timerUnit {
   font-size: 1.2rem;
-  color: #059669;
+  color: #758592;
   font-weight: 500;
 }
 
-/* CHECKLIST */
-.checklist {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 .checklist li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1rem;
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.02);
+  display: flex;          /* ← esto faltaba */
+  align-items: center;    /* ← y esto */
+  gap: 10px;
+  font-size: 0.95rem;
+  padding: 7px 10px;
+  background: rgba(0, 0, 0, 0.02);
   border-radius: 8px;
-  color: #555;
+  color: #758592;
   transition: all 0.3s ease;
   border: 1px solid transparent;
+  list-style: none;
+}
+
+.checkCircle {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #D6D1CA;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: transparent;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
 }
 
 .checklist li.stepActive {
-  color: #fff;
-  background: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.2);
+  color: #131E29;
+  background: rgba(22, 101, 52, 0.06);
+  border-color: rgba(22, 101, 52, 0.25);
 }
 
 .checkCircle {
   width: 22px;
   height: 22px;
-  border: 2px solid #444;
+  border: 2px solid #D6D1CA;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -178,17 +175,16 @@
 }
 
 .checkCircleActive {
-  border-color: #10b981;
-  background-color: #10b981;
-  color: #000;
+  border-color: #16a34a;
+  background-color: #16a34a;
+  color: #ffffff;
 }
 
-/* BOTÓN SIGUIENTE */
 .nextButton {
   margin-top: auto;
   background: transparent;
-  border: 2px solid #10b981;
-  color: #10b981;
+  border: 2px solid #8A001A;
+  color: #8A001A;
   padding: 16px;
   font-size: 1rem;
   border-radius: 10px;
@@ -198,13 +194,13 @@
   width: 100%;
   transition: background 0.2s, color 0.2s;
 }
-.nextButton:hover { background: #10b981; color: #000; }
 
-/* MISC */
+.nextButton:hover { background: #8A001A; color: #ffffff; }
+
 .label {
   display: block;
   font-size: 0.75rem;
-  color: #555;
+  color: #758592;
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -212,8 +208,8 @@
 
 .backButtonOutline {
   background: transparent;
-  border: 1px solid #333;
-  color: #888;
+  border: 1px solid #D6D1CA;
+  color: #758592;
   padding: 7px 14px;
   border-radius: 6px;
   cursor: pointer;
@@ -221,26 +217,27 @@
   transition: border-color 0.2s, color 0.2s;
   white-space: nowrap;
 }
-.backButtonOutline:hover { border-color: #555; color: #ccc; }
+
+.backButtonOutline:hover { border-color: #415364; color: #131E29; }
 
 .mobileBackBtn { display: none; }
 
-/* RESPONSIVE */
 @media (max-width: 1100px) {
   .layout { display: block; height: auto; overflow: visible; }
   .chartsColumn { height: auto; padding: 20px; justify-content: flex-start; }
   .chartCard { height: 50vw; min-height: 280px; }
-  .controlsPanel { height: auto; border-left: none; border-top: 1px solid #2a2a2a; padding: 20px; }
-  .mobileBackBtn { display: block; background: #333; color: white; border: none; padding: 10px 20px; border-radius: 6px; margin-bottom: 16px; cursor: pointer; }
+  .controlsPanel { height: auto; border-left: none; border-top: 1px solid #D6D1CA; padding: 20px; }
+  .mobileBackBtn { display: block; background: #f0ece8; color: #131E29; border: none; padding: 10px 20px; border-radius: 6px; margin-bottom: 16px; cursor: pointer; }
   .backButtonOutline { display: none; }
   .timerDisplay { font-size: 2.2rem; }
 }
+
 .patronBadge {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(138, 0, 26, 0.05);
+  border: 1px solid rgba(138, 0, 26, 0.2);
   border-radius: 10px;
   padding: 10px 14px;
 }
@@ -249,11 +246,11 @@
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #10b981;
+  color: #8A001A;
 }
 
 .patronNombre {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #fff;
+  color: #131E29;
 }
