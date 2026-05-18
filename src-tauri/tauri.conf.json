@@ -13,8 +13,10 @@
     "windows": [
       {
         "title": "espirometriapp",
-        "width": 1280,
-        "height": 800
+        "width": 1024,
+        "height": 768,
+        "icon": "icons/128x128.png"
+        
       }
     ],
     "security": {
