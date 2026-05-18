@@ -56,28 +56,23 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     idxInicioExhalacionForzada,
     vbe,
   } = useMemo(() => {
-    // ── 1. Generar índices en el rango Z correcto para la fase actual ─────────
-    //    En fase "post" los rangos Z son más favorables según el tipo de respuesta BD.
     const indicesManiobra = generarIndicesAleatorios(
       fvc,
       fev1,
       mls,
       patronActivo,
-      faseActual, // ← determina si se usan rangos pre o post-BD
+      faseActual,
     );
 
-    // ── 2. Factor visual del scoop obstructivo (solo afecta la curva) ─────────
     let factorObstruccion = 1;
     if (faseActual === "post" && patronActivo) {
       const bd = calcularRespuestaBD(patronActivo.respuestaBD);
       factorObstruccion = bd.factorObstruccion;
     }
 
-    // Valores para construir la curva
     const fvcM = indicesManiobra.fvc;
     const fev1M = indicesManiobra.fev1;
 
-    // ── 3. Construir curva flujo-volumen ──────────────────────────────────────
     const peakFlujo = fev1M * (1.45 + Math.random() * 0.15);
     const peakVol = fvcM * (0.13 + Math.random() * 0.05);
 
@@ -231,7 +226,6 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       return [t, volBase];
     });
 
-    // Buscar máxima pendiente
     let maxPendiente = 0;
     let idxMaxPend = 1;
     for (let i = 1; i < volumenTiempo.length - 1; i++) {
@@ -249,7 +243,6 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     const vPico = volumenTiempo[idxMaxPend][1];
     const vbe = Math.max(0, vPico - maxPendiente * tPico);
 
-    // ── 4. Aplicar patrón a la curva (factorObstruccion reduce el scoop post-BD) ──
     const flujoVolumenFinal = aplicarPatron(
       flujoVolumen,
       fvcM,
@@ -269,7 +262,6 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
   const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
 
-  // Genera una maniobra completa con índices, curva y VBE
   const generarUnaManiobra = () => {
     const indices = generarIndicesAleatorios(
       fvc,
@@ -309,7 +301,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
             cX + perturbar(rX, 0.02 * mr) * Math.cos(theta),
             0.005 * mr,
           ),
-          -perturbar(rY, 0.05 * mr) *
+          -perturbar(ry, 0.05 * mr) *
             Math.sign(Math.sin(theta)) *
             Math.pow(Math.abs(Math.sin(theta)), ff),
         ]);
@@ -494,10 +486,19 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
   return (
     <div className={styles.layout}>
+      {/* ── Columna izquierda: título + gráfico ── */}
       <div className={styles.chartsColumn}>
         <button onClick={onBack} className={styles.mobileBackBtn}>
           ← Salir
         </button>
+
+        <div className={styles.chartTitle}>
+          Maniobra
+          {faseActual === "post" && (
+            <span className={styles.chartTitleBadge}>Post-BD</span>
+          )}
+        </div>
+
         <div className={styles.chartCard}>
           <GraficoPaciente
             ref={grafico1Ref}
@@ -514,40 +515,36 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
         </div>
       </div>
 
+      {/* ── Panel derecho ── */}
       <aside className={styles.controlsPanel}>
         <div className={styles.panelHeader}>
-          <div>
-            <h2>
-              Maniobra
-              {faseActual === "post" && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    fontSize: "0.75rem",
-                    color: "#10b981",
-                  }}
-                >
-                  Post-BD
+          <div className={styles.patientInfoBlock}>
+            {pacienteActual ? (
+              <>
+                <span className={styles.patientName}>
+                  {pacienteActual.nombre}
                 </span>
-              )}
-            </h2>
-            {pacienteActual && (
-              <span className={styles.patientName}>
-                {pacienteActual.nombre}
-              </span>
+                {(pacienteActual.edad || pacienteActual.sexo) && (
+                  <span className={styles.patientMeta}>
+                    {pacienteActual.edad && `${pacienteActual.edad} años`}
+                    {pacienteActual.edad && pacienteActual.sexo && " · "}
+                    {pacienteActual.sexo}
+                  </span>
+                )}
+                {patronActivo && (
+                  <span className={styles.patronBadge}>
+                    {patronActivo.nombre}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className={styles.patientName}>Sin paciente</span>
             )}
           </div>
           <button onClick={onBack} className={styles.backButtonOutline}>
             Salir
           </button>
         </div>
-
-        {patronActivo && (
-          <div className={styles.patronBadge}>
-            <span className={styles.patronLabel}>Caso clínico</span>
-            <span className={styles.patronNombre}>{patronActivo.nombre}</span>
-          </div>
-        )}
 
         <div className={styles.card}>
           <span className={styles.label}>Estado de sesión</span>

@@ -80,7 +80,16 @@ export default function Interpolacion({
               : "Comparativa de Maniobras"}
           </h1>
           {pacienteActual && (
-            <span className={styles.patientName}>{pacienteActual.nombre}</span>
+            <>
+              <span className={styles.patientName}>
+                {pacienteActual.nombre}
+              </span>
+              <span className={styles.patientMeta}>
+                {pacienteActual.edad && `${pacienteActual.edad} años`}
+                {pacienteActual.edad && pacienteActual.sexo && " · "}
+                {pacienteActual.sexo}
+              </span>
+            </>
           )}
           {patronActivo && (
             <span className={styles.patronBadge}>{patronActivo.nombre}</span>

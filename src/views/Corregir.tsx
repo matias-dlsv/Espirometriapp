@@ -14,6 +14,7 @@ interface CorregirProps {
 export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
   const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
+  const patronActivo = usePacientStore((state) => state.patronActivo);
   const faseActual = usePacientStore((state) => state.faseActual);
 
   const parametros = pacienteActual?.espirometrias?.[0]?.parametros ?? null;
@@ -128,9 +129,21 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <div>
             <h2>Revisión</h2>
             {pacienteActual && (
-              <span className={styles.patientName}>
-                {pacienteActual.nombre}
-              </span>
+              <>
+                <span className={styles.patientName}>
+                  {pacienteActual.nombre}
+                </span>
+                {(pacienteActual.edad || pacienteActual.sexo) && (
+                  <span className={styles.patientMeta}>
+                    {pacienteActual.edad && `${pacienteActual.edad} años`}
+                    {pacienteActual.edad && pacienteActual.sexo && " · "}
+                    {pacienteActual.sexo}
+                  </span>
+                )}
+              </>
+            )}
+            {patronActivo && (
+              <span className={styles.patronBadge}>{patronActivo.nombre}</span>
             )}
           </div>
           <button onClick={onBack} className={styles.backButtonOutline}>

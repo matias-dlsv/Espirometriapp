@@ -250,3 +250,8 @@
   color: #8A001A;
   font-size: 1.05rem;
 }
+.patientMeta {
+  font-size: 0.75rem;
+  color: #758592;
+  display: block;
+}

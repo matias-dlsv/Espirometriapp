@@ -10,33 +10,37 @@
 }
 
 .chartsColumn {
-  height: 100%;          /* ← restaurar a 100% */
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
   gap: 20px;
+  overflow: hidden;
+  min-height: 0; /* crítico para que flex no desborde */
 }
 
+
 .chartCard {
-  /* El chart nunca superará el ancho de la columna NI el alto del viewport */
-  width: min(95%, calc(100vh - 48px));
+  width: min(95%, calc(100vh - 120px));
+  max-height: calc(100vh - 120px);
   aspect-ratio: 1 / 1;
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid #D6D1CA;
   box-shadow: 0 0 0 1px #8A001A;
 }
+
 .controlsPanel {
   background-color: #f7f5f3;
   border-left: 1px solid #D6D1CA;
-  padding: 20px 24px;   /* ← era 28px */
+  padding: 20px 24px;
   height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;            /* ← era 16px */
+  gap: 10px;
 }
 
 .panelHeader {
@@ -46,24 +50,11 @@
   margin-bottom: 4px;
 }
 
-.panelHeader h2 {
-  font-size: 1.4rem;
-  margin: 0 0 4px 0;
-  color: #131E29;
-  font-weight: 700;
-}
-
-.patientName {
-  font-size: 0.85rem;
-  color: #8A001A;
-  font-weight: 500;
-}
-
 .card {
   background-color: #ffffff;
   border: 1px solid #D6D1CA;
   border-radius: 12px;
-  padding: 12px;        /* ← era 16px */
+  padding: 12px;
 }
 
 .instructionsText {
@@ -82,7 +73,7 @@
   background-color: #8A001A;
   color: white;
   border: none;
-  padding: 12px;    
+  padding: 12px;
   border-radius: 10px;
   cursor: pointer;
   display: flex;
@@ -103,7 +94,7 @@
 .mainActionButton:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .timerDisplay {
-  font-size: 2.2rem;    /* ← era 3rem */
+  font-size: 2.2rem;
   padding: 8px;
   border-radius: 8px;
   border: 1px solid #D6D1CA;
@@ -125,8 +116,8 @@
 }
 
 .checklist li {
-  display: flex;          /* ← esto faltaba */
-  align-items: center;    /* ← y esto */
+  display: flex;
+  align-items: center;
   gap: 10px;
   font-size: 0.95rem;
   padding: 7px 10px;
@@ -136,27 +127,6 @@
   transition: all 0.3s ease;
   border: 1px solid transparent;
   list-style: none;
-}
-
-.checkCircle {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #D6D1CA;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: bold;
-  color: transparent;
-  flex-shrink: 0;
-  transition: all 0.3s ease;
-}
-
-.checklist li.stepActive {
-  color: #131E29;
-  background: rgba(22, 101, 52, 0.06);
-  border-color: rgba(22, 101, 52, 0.25);
 }
 
 .checkCircle {
@@ -172,6 +142,12 @@
   color: transparent;
   flex-shrink: 0;
   transition: all 0.3s ease;
+}
+
+.checklist li.stepActive {
+  color: #131E29;
+  background: rgba(22, 101, 52, 0.06);
+  border-color: rgba(22, 101, 52, 0.25);
 }
 
 .checkCircleActive {
@@ -233,13 +209,9 @@
 }
 
 .patronBadge {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background: rgba(138, 0, 26, 0.05);
-  border: 1px solid rgba(138, 0, 26, 0.2);
-  border-radius: 10px;
-  padding: 10px 14px;
+  font-size: 0.75rem;
+  color: #758592;
+  display: block;
 }
 
 .patronLabel {
@@ -253,4 +225,45 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: #131E29;
+}
+
+/* ── Título sobre el gráfico ── */
+.chartTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #131E29;
+  align-self: flex-start;
+  padding-left: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chartTitleBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+/* ── Info del paciente en el panel derecho ── */
+.patientInfoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* AGREGAR */
+.patientName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #131E29;
+}
+
+.patientMeta {
+  font-size: 0.75rem;
+  color: #758592;
+  display: block;
 }

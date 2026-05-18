@@ -143,7 +143,18 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
               : "Pre-Broncodilatador"}
           </h1>
           {pacienteActual && (
-            <span className={styles.patientName}>{pacienteActual.nombre}</span>
+            <>
+              <span className={styles.patientName}>
+                {pacienteActual.nombre}
+              </span>
+              {(pacienteActual.edad || pacienteActual.sexo) && (
+                <span className={styles.patientMeta}>
+                  {pacienteActual.edad && `${pacienteActual.edad} años`}
+                  {pacienteActual.edad && pacienteActual.sexo && " · "}
+                  {pacienteActual.sexo}
+                </span>
+              )}
+            </>
           )}
           {patronActivo && (
             <span className={styles.patronBadge}>{patronActivo.nombre}</span>

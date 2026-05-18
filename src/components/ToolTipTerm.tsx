@@ -6,12 +6,13 @@ import { createPortal } from "react-dom";
 // ============================================================
 export const GLOSARIO: Record<string, { titulo: string; cuerpo: string }> = {
   FVC: {
-    titulo: "FVC (Forced Vital Capacity)",
+    titulo: "FVC (Forced Vital Capacity) / CVF (Capacidad Vital Forzada) ",
     cuerpo:
       "Volumen máximo de aire que una persona puede exhalar con el máximo esfuerzo y rapidez posible, partiendo desde una inspiración máxima previa.",
   },
   FEV1: {
-    titulo: "FEV1 (Forced Expiratory Volume in 1 s)",
+    titulo:
+      "FEV1 (Forced Expiratory Volume in 1 s) / VEF1 (Volumen Espiratorio Forzado en el primer segundo)",
     cuerpo:
       "Volumen de aire expulsado durante el primer segundo de la maniobra de espiración forzada.",
   },

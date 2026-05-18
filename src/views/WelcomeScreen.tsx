@@ -1,5 +1,6 @@
 import styles from "./WelcomeScreen.module.css";
 import logo from "../assets/E.-de-Kinesiología.png";
+import espiroLogo from "../assets/Logo moderno de EspiroSim.png";
 
 interface WelcomeProps {
   onNavigate: (view: "custom" | "clinical") => void;
@@ -23,7 +24,9 @@ export default function WelcomeScreen({ onNavigate }: WelcomeProps) {
       />
 
       <div className={styles.headerSection}>
-        <h1 className={styles.mainTitle}>EspiroSim</h1>
+        <h1 className={styles.mainTitle}>
+          Espiro<span className={styles.simAccent}>Sim</span>
+        </h1>
         <p className={styles.subTitle}>
           Selecciona el modo de trabajo para comenzar
         </p>

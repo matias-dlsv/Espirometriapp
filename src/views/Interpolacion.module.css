@@ -212,3 +212,8 @@
     width: min(100%, calc(100vh - 48px));
   }
 }
+.patientMeta {
+  font-size: 0.75rem;
+  color: #758592;
+  display: block;
+}

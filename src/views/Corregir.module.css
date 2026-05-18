@@ -268,3 +268,13 @@
   font-size: 0.72rem;
   opacity: 0.55;
 }
+.patientMeta {
+  font-size: 0.75rem;
+  color: #758592;
+  display: block;
+}
+.patronBadge {
+  font-size: 0.75rem;
+  color: #758592;
+  display: block;
+}
