@@ -11,6 +11,7 @@ import Corregir from "./views/Corregir";
 import Interpolacion from "./views/Interpolacion";
 import Resultado from "./views/Resultado";
 import { usePacientStore } from "./store/pacientStore";
+import { CriteriosAceptabilidad } from "./utils/transformaciones";
 
 export type AppView =
   | "welcome"
@@ -32,6 +33,7 @@ export interface NavigationPayload {
   volResidual?: number;
   idxInicioExhalacionForzada?: number;
   vbe?: number;
+  criteriosGenerados?: CriteriosAceptabilidad; // ← nuevo
 }
 
 function App() {

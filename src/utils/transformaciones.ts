@@ -24,37 +24,71 @@ export const CASOS_CLINICOS: PatronClinico[] = [
     obstruccion: false,
     restriccion: false,
     tos: false,
-    respuestaBD: "ninguna",       // variabilidad fisiológica <4 %
+    respuestaBD: "ninguna",
   },
   {
     nombre: "Asma",
     obstruccion: true,
     restriccion: false,
     tos: false,
-    respuestaBD: "significativa", // única con respuesta >12 % FEV1
+    respuestaBD: "significativa",
   },
   {
     nombre: "EPOC",
     obstruccion: true,
     restriccion: false,
     tos: false,
-    respuestaBD: "leve",          // obstructivo poco reversible <12 %
+    respuestaBD: "leve",
   },
   {
     nombre: "Escoliosis Severa",
     obstruccion: false,
     restriccion: true,
     tos: false,
-    respuestaBD: "leve",          // restrictivo extrapulmonar, cambios menores
+    respuestaBD: "leve",
   },
   {
     nombre: "Lobectomía",
     obstruccion: false,
     restriccion: true,
     tos: false,
-    respuestaBD: "leve",          // restrictivo postquirúrgico, cambios menores
+    respuestaBD: "leve",
   },
 ];
+
+// ============================================================
+// CRITERIOS DE ACEPTABILIDAD
+// ============================================================
+
+export interface CriteriosAceptabilidad {
+  vtestables: boolean;
+  esfuerzomaximo: boolean;
+  volumenextrapolado: boolean;
+  pefcontinuo: boolean;
+}
+
+/**
+ * Probabilidad de FALLO por criterio (0.0 = nunca falla, 1.0 = siempre falla).
+ * Ajustar estos valores para calibrar la frecuencia de maniobras inválidas.
+ */
+const PROB_FALLO: Record<keyof CriteriosAceptabilidad, number> = {
+  vtestables:         0.25,
+  esfuerzomaximo:     0.25,
+  volumenextrapolado: 0.25,
+  pefcontinuo:        0.25,
+};
+
+/**
+ * Genera criterios de aceptabilidad aleatorios para una maniobra.
+ * Cada criterio tiene una probabilidad independiente de fallar
+ * definida en PROB_FALLO.
+ */
+export const generarCriterios = (): CriteriosAceptabilidad => ({
+  vtestables:         Math.random() > PROB_FALLO.vtestables,
+  esfuerzomaximo:     Math.random() > PROB_FALLO.esfuerzomaximo,
+  volumenextrapolado: Math.random() > PROB_FALLO.volumenextrapolado,
+  pefcontinuo:        Math.random() > PROB_FALLO.pefcontinuo,
+});
 
 // ============================================================
 // RESPUESTA BRONCODILATADORA
@@ -159,23 +193,19 @@ const RESTRICTIVO_MODERADO: RangosPatron = {
 };
 
 // ── Post-BD ──────────────────────────────────────────────────
-// Los rangos post-BD reflejan la mejora esperada según tipo de respuesta.
 
-/** Obstructivo con respuesta significativa: FEV1 puede alcanzar el LLN o superarlo */
 const OBSTRUCTIVO_POST_SIGNIFICATIVO: RangosPatron = {
-  fvc:     { min: -1.0,  max:  0.5  },  // FVC mejora a casi normal
-  fev1:    { min: -1.64, max: -0.3  },  // FEV1 sube notablemente, puede cruzar el LLN
-  fev1fvc: { min: -1.64, max: -0.3  },  // ratio mejora, puede normalizarse
+  fvc:     { min: -1.0,  max:  0.5  },
+  fev1:    { min: -1.64, max: -0.3  },
+  fev1fvc: { min: -1.64, max: -0.3  },
 };
 
-/** Restrictivo con respuesta leve: mejora pequeña, sigue por debajo del LLN */
 const RESTRICTIVO_POST_LEVE: RangosPatron = {
   fvc:     { min: -2.2, max: -1.54 },
   fev1:    { min: -2.2, max: -1.54 },
   fev1fvc: { min: -0.5, max:  1.0  },
 };
 
-/** Normal / sin respuesta: variabilidad fisiológica mínima */
 const NORMAL_POST: RangosPatron = {
   fvc:     { min: -1.54, max: 0.5 },
   fev1:    { min: -1.54, max: 0.5 },
@@ -200,8 +230,8 @@ export const aplicarObstruccion = (
   return curva.map(([x, y]) => {
     if (x <= 0 || y <= 0) return [x, y];
     const progreso = x / fvc;
-    const scoop = 0.70 * factor;
-    const f = 1 - scoop * Math.pow(progreso, 2.0);
+    const scoop = 0.88 * factor;
+    const f = 1 - scoop * Math.pow(progreso, 2.5);
     return [x, y * Math.max(f, 0.05)];
   });
 };
@@ -287,7 +317,6 @@ export const generarIndicesAleatorios = (
   faseActual: "pre" | "post" = "pre",
 ): { fvc: number; fev1: number; fev1fvc: number } => {
 
-  // Sin MLS disponibles: fallback con mejora empírica en post
   if (!mls) {
     const mejora = faseActual === "post" && patron?.respuestaBD === "significativa"
       ? 1.14
@@ -302,7 +331,6 @@ export const generarIndicesAleatorios = (
   let rangos: RangosPatron;
 
   if (faseActual === "post") {
-    // Rangos post-BD: directamente en la zona de mejoría esperada
     if (patron?.obstruccion && patron.respuestaBD === "significativa") {
       rangos = OBSTRUCTIVO_POST_SIGNIFICATIVO;
     } else if (patron?.restriccion) {
@@ -311,7 +339,6 @@ export const generarIndicesAleatorios = (
       rangos = NORMAL_POST;
     }
   } else {
-    // Rangos pre-BD: lógica original
     if (patron?.obstruccion && !patron?.restriccion) {
       rangos = Math.random() < 0.5 ? OBSTRUCTIVO_LEVE : OBSTRUCTIVO_MODERADO;
     } else if (patron?.restriccion && !patron?.obstruccion) {

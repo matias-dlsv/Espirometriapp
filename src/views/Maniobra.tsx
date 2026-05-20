@@ -7,6 +7,7 @@ import {
   aplicarPatron,
   calcularRespuestaBD,
   generarIndicesAleatorios,
+  generarCriterios,
 } from "../utils/transformaciones";
 
 interface ManiobraProps {
@@ -55,6 +56,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     volResidual,
     idxInicioExhalacionForzada,
     vbe,
+    criteriosManiobra,
   } = useMemo(() => {
     const indicesManiobra = generarIndicesAleatorios(
       fvc,
@@ -257,6 +259,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       volResidual,
       idxInicioExhalacionForzada,
       vbe,
+      criteriosManiobra: generarCriterios(), // ← nuevo
     };
   }, [fev1, fvc, mls, patronActivo, faseActual]);
 
@@ -434,6 +437,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       datosVolumenTiempo: volumenTiempo,
       indices,
       vbe,
+      criterios: generarCriterios(), // ← nuevo
     };
   };
 
@@ -444,12 +448,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       guardarManiobra(pacienteActual.id, {
         datosFlujoVolumen: m.datosFlujoVolumen,
         datosVolumenTiempo: m.datosVolumenTiempo,
-        criterios: {
-          vtestables: true,
-          esfuerzomaximo: true,
-          volumenextrapolado: true,
-          pefcontinuo: true,
-        },
+        criterios: m.criterios, // ← usa los generados aleatoriamente
         fecha: new Date().toISOString(),
         indices: m.indices,
       });
@@ -486,7 +485,6 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
   return (
     <div className={styles.layout}>
-      {/* ── Columna izquierda: título + gráfico ── */}
       <div className={styles.chartsColumn}>
         <button onClick={onBack} className={styles.mobileBackBtn}>
           ← Salir
@@ -515,7 +513,6 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
         </div>
       </div>
 
-      {/* ── Panel derecho ── */}
       <aside className={styles.controlsPanel}>
         <div className={styles.panelHeader}>
           <div className={styles.patientInfoBlock}>
@@ -605,6 +602,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
               volResidual,
               idxInicioExhalacionForzada,
               vbe,
+              criteriosGenerados: criteriosManiobra, // ← nuevo
             })
           }
           className={styles.nextButton}

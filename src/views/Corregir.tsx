@@ -11,6 +11,13 @@ interface CorregirProps {
   data: NavigationPayload | null;
 }
 
+const LABELS: Record<string, string> = {
+  vtestables: "3 Vt estables",
+  esfuerzomaximo: "Esfuerzo máximo",
+  volumenextrapolado: "Volumen extrapolado aceptable (<100ml)",
+  pefcontinuo: "PEF continuo y libre de artefactos",
+};
+
 export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
   const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
@@ -25,6 +32,15 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const umbralVBE = Math.max(0.15, fvc * 0.05);
   const vbeCumple = vbe < umbralVBE;
 
+  const criteriosGenerados = data?.criteriosGenerados ?? {
+    vtestables: true,
+    esfuerzomaximo: true,
+    volumenextrapolado: true,
+    pefcontinuo: true,
+  };
+
+  const hayFallos = Object.values(criteriosGenerados).some((v) => !v);
+
   const [criterios, setCriterios] = useState({
     vtestables: false,
     esfuerzomaximo: false,
@@ -32,9 +48,14 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
     pefcontinuo: false,
   });
 
-  const todosCumplen = Object.values(criterios).every((v) => v === true);
+  // false = estado normal | true = el usuario intentó guardar y había fallos
+  const [intentoGuardar, setIntentoGuardar] = useState(false);
+
+  const todosMarcados = Object.values(criterios).every(Boolean);
 
   const handleToggleCriterio = (key: keyof typeof criterios) => {
+    // Bloqueado si ya intentó guardar y ese criterio falla automáticamente
+    if (intentoGuardar && !criteriosGenerados[key]) return;
     setCriterios((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -43,8 +64,15 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const datosAzul = data?.datosFlujoVolumen.slice(idxCorte) ?? [];
 
   const handleGuardarYContinuar = () => {
-    if (!todosCumplen || !data || !pacienteActual) return;
+    if (!todosMarcados || !data || !pacienteActual) return;
 
+    // Si hay fallos automáticos: mostrar banner y bloquear — no guardar
+    if (hayFallos) {
+      setIntentoGuardar(true);
+      return;
+    }
+
+    // Sin fallos: guardar y navegar
     const cantidadAntes =
       faseActual === "pre"
         ? (pacienteActual.espirometrias[0]?.maniobras?.length ?? 0)
@@ -154,7 +182,6 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
         {data.indices && (
           <div className={styles.card}>
             <span className={styles.label}>Índices de esta maniobra</span>
-
             <div className={styles.indicesGrid}>
               <div className={styles.indiceItem}>
                 <span className={styles.indiceLabel}>
@@ -181,7 +208,6 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
                 </span>
               </div>
             </div>
-
             <div className={styles.vbeSeparador} />
             <div className={styles.vbeRow}>
               <div className={styles.vbeRowLeft}>
@@ -199,6 +225,31 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           </div>
         )}
 
+        {/* Banner: solo aparece tras intentar guardar con fallos automáticos */}
+        {intentoGuardar && hayFallos && (
+          <div
+            style={{
+              background: "#450a0a",
+              border: "1px solid #991b1b",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: "0.82rem",
+              color: "#fca5a5",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ color: "#f87171" }}>Maniobra no aceptable.</strong>{" "}
+            Los siguientes criterios no se cumplen:{" "}
+            <strong>
+              {Object.entries(criteriosGenerados)
+                .filter(([, v]) => !v)
+                .map(([k]) => LABELS[k])
+                .join(", ")}
+            </strong>
+            . Debe descartar esta maniobra.
+          </div>
+        )}
+
         <div className={styles.card}>
           <p className={styles.instructionsText}>
             Revise la curva obtenida y marque los criterios cumplidos.
@@ -208,39 +259,68 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
         <div className={styles.card}>
           <span className={styles.label}>Criterios de Aceptabilidad</span>
           <div className={styles.checkList}>
-            {[
-              { key: "vtestables", label: "3 Vt estables" },
-              { key: "esfuerzomaximo", label: "Esfuerzo máximo" },
-              {
-                key: "volumenextrapolado",
-                label: "Volumen extrapolado aceptable (<100ml)",
+            {(Object.keys(criterios) as Array<keyof typeof criterios>).map(
+              (key) => {
+                // Solo se pone rojo y bloqueado después de intentar guardar
+                const esFallo = intentoGuardar && !criteriosGenerados[key];
+                const bloqueado = esFallo;
+                return (
+                  <label
+                    key={key}
+                    className={styles.checkItem}
+                    style={{
+                      color: esFallo ? "#ef4444" : undefined,
+                      cursor: bloqueado ? "not-allowed" : "pointer",
+                      opacity: 1,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={criterios[key]}
+                      disabled={bloqueado}
+                      onChange={() => handleToggleCriterio(key)}
+                      style={{
+                        accentColor: esFallo ? "#ef4444" : undefined,
+                      }}
+                    />
+                    {LABELS[key]}
+                    {esFallo && (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          fontSize: "0.75rem",
+                          color: "#ef4444",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        — no cumple
+                      </span>
+                    )}
+                  </label>
+                );
               },
-              {
-                key: "pefcontinuo",
-                label: "PEF continuo y libre de artefactos",
-              },
-            ].map(({ key, label }) => (
-              <label key={key} className={styles.checkItem}>
-                <input
-                  type="checkbox"
-                  checked={criterios[key as keyof typeof criterios]}
-                  onChange={() =>
-                    handleToggleCriterio(key as keyof typeof criterios)
-                  }
-                />
-                {label}
-              </label>
-            ))}
+            )}
           </div>
         </div>
 
-        <button
-          onClick={handleGuardarYContinuar}
-          disabled={!todosCumplen}
-          className={`${styles.nextButton} ${!todosCumplen ? styles.nextButtonDisabled : ""}`}
-        >
-          Guardar y Continuar →
-        </button>
+        {/* Botón: cambia a Descartar si intentó guardar con fallos */}
+        {intentoGuardar && hayFallos ? (
+          <button
+            onClick={onBack}
+            className={styles.nextButton}
+            style={{ background: "#7f1d1d", borderColor: "#991b1b" }}
+          >
+            Descartar maniobra →
+          </button>
+        ) : (
+          <button
+            onClick={handleGuardarYContinuar}
+            disabled={!todosMarcados}
+            className={`${styles.nextButton} ${!todosMarcados ? styles.nextButtonDisabled : ""}`}
+          >
+            Guardar y Continuar →
+          </button>
+        )}
       </aside>
     </div>
   );
