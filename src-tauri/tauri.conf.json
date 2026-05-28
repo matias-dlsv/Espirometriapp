@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "espirometriapp",
+        "title": "EspiroSim",
         "width": 1280,
         "height": 768
         
