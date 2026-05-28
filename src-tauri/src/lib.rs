@@ -9,7 +9,6 @@ pub struct PacienteInput {
     pub nombre: String,
     pub edad: u32,
     pub talla: f64,
-    pub peso: f64,
     pub sexo: String,
     pub raza: String,
 }

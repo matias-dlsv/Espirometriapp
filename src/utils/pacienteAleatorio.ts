@@ -4,6 +4,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { Paciente, DatosEspirometria } from "../store/pacientStore";
+import { CASOS_CLINICOS, PatronClinico } from "./transformaciones";
+import { usePacientStore } from "../store/pacientStore";
 
 const NOMBRES_MASCULINOS = [
     "Matías", "Diego", "Sebastián", "Nicolás", "Alejandro",
