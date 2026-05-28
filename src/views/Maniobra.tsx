@@ -572,17 +572,6 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
   return (
     <div className={styles.layout}>
       <div className={styles.chartsColumn}>
-        <button
-          onClick={() => {
-            usePacientStore.getState().setPatron(null);
-            usePacientStore.getState().setOrigenCasoClinico(false);
-            onBack();
-          }}
-          className={styles.mobileBackBtn}
-        >
-          ← Salir
-        </button>
-
         <div className={styles.chartTitle}>
           Maniobra
           {faseActual === "post" && (
