@@ -59,11 +59,10 @@ export const crearPacienteAleatorio = async (
     const edad = enteroEntre(18, 75);
     const raza = elegir(RAZAS);
     const talla = sexo === "Masculino" ? floatEntre(160, 190) : floatEntre(150, 175);
-    const peso = sexo === "Masculino" ? floatEntre(60, 100) : floatEntre(50, 85);
 
     const espirometriaDefault: DatosEspirometria = await invoke(
         "procesar_nuevo_paciente",
-        { datos: { nombre, edad, talla, peso, sexo, raza } },
+        { datos: { nombre, edad, talla, sexo, raza } },
     );
 
     const nuevoPaciente: Paciente = {
@@ -73,7 +72,6 @@ export const crearPacienteAleatorio = async (
         sexo,
         talla,
         raza,
-        peso,
         fechaRegistro: new Date().toLocaleDateString(),
         espirometrias: [espirometriaDefault],
     };

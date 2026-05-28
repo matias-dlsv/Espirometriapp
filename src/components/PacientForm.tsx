@@ -20,24 +20,26 @@ function PacientForm({ onNavigate }: PacientFormProps) {
   const [sexo, setSexo] = useState("");
   const [talla, setTalla] = useState("");
   const [raza, setRaza] = useState("");
-  const [peso, setPeso] = useState("");
   const [cargandoAleatorio, setCargandoAleatorio] = useState(false);
 
-  const addPaciente        = usePacientStore((state) => state.addPaciente);
-  const pacientes          = usePacientStore((state) => state.pacientes);
-  const seleccionarPaciente = usePacientStore((state) => state.seleccionarPaciente);
+  const addPaciente = usePacientStore((state) => state.addPaciente);
+  const pacientes = usePacientStore((state) => state.pacientes);
+  const seleccionarPaciente = usePacientStore(
+    (state) => state.seleccionarPaciente,
+  );
 
   const validar = (): string | null => {
-    if (!nombre.trim() || !edad || !sexo || !talla || !raza || !peso)
+    if (!nombre.trim() || !edad || !sexo || !talla || !raza)
       return "Por favor completa todos los campos";
     if (pacientes.some((p) => p.nombre.toLowerCase() === nombre.toLowerCase()))
       return "Este paciente ya existe";
-    const edadNum  = Number(edad);
+    const edadNum = Number(edad);
     const tallaNum = Number(talla);
-    const pesoNum  = Number(peso);
-    if (isNaN(edadNum)  || edadNum  < 3   || edadNum  > 100) return "Edad inválida (3–100)";
-    if (isNaN(tallaNum) || tallaNum < 20  || tallaNum > 300) return "Talla inválida en cm (20–300)";
-    if (isNaN(pesoNum)  || pesoNum  < 20  || pesoNum  > 300) return "Peso inválido en kg (20–300)";
+
+    if (isNaN(edadNum) || edadNum < 3 || edadNum > 100)
+      return "Edad inválida (3–100)";
+    if (isNaN(tallaNum) || tallaNum < 20 || tallaNum > 300)
+      return "Talla inválida en cm (20–300)";
     return null;
   };
 
@@ -45,26 +47,43 @@ function PacientForm({ onNavigate }: PacientFormProps) {
     e.preventDefault();
     const mensajeError = validar();
     if (mensajeError) {
-      toast.error(mensajeError, { style: { background: "#1a1a1a", color: "#fff" } });
+      toast.error(mensajeError, {
+        style: { background: "#1a1a1a", color: "#fff" },
+      });
       return;
     }
-    const edadNum  = Number(edad);
+    const edadNum = Number(edad);
     const tallaNum = Number(talla);
-    const pesoNum  = Number(peso);
     try {
       const espirometriaDefault: DatosEspirometria = await invoke(
         "procesar_nuevo_paciente",
-        { datos: { nombre, edad: edadNum, talla: tallaNum, peso: pesoNum, sexo, raza } },
+        {
+          datos: {
+            nombre,
+            edad: edadNum,
+            talla: tallaNum,
+            sexo,
+            raza,
+          },
+        },
       );
       const nuevoPaciente: Paciente = {
         id: crypto.randomUUID(),
-        nombre, edad: edadNum, sexo, talla: tallaNum, raza, peso: pesoNum,
+        nombre,
+        edad: edadNum,
+        sexo,
+        talla: tallaNum,
+        raza,
         fechaRegistro: new Date().toLocaleDateString(),
         espirometrias: [espirometriaDefault],
       };
       addPaciente(nuevoPaciente);
       seleccionarPaciente(nuevoPaciente.id);
-      toast.success(`Paciente ${nombre} creado`, { duration: 2000, position: "bottom-right", style: { background: "#1a1a1a", color: "#fff" } });
+      toast.success(`Paciente ${nombre} creado`, {
+        duration: 2000,
+        position: "bottom-right",
+        style: { background: "#1a1a1a", color: "#fff" },
+      });
       onNavigate("maniobra");
     } catch (err) {
       console.error(err);
@@ -76,8 +95,16 @@ function PacientForm({ onNavigate }: PacientFormProps) {
     if (cargandoAleatorio) return;
     setCargandoAleatorio(true);
     try {
-      const paciente = await crearPacienteAleatorio(addPaciente, seleccionarPaciente, pacientes);
-      toast.success(`Paciente: ${paciente.nombre}`, { duration: 2000, position: "bottom-right", style: { background: "#1a1a1a", color: "#fff" } });
+      const paciente = await crearPacienteAleatorio(
+        addPaciente,
+        seleccionarPaciente,
+        pacientes,
+      );
+      toast.success(`Paciente: ${paciente.nombre}`, {
+        duration: 2000,
+        position: "bottom-right",
+        style: { background: "#1a1a1a", color: "#fff" },
+      });
       onNavigate("maniobra");
     } catch (err) {
       console.error(err);
@@ -95,7 +122,9 @@ function PacientForm({ onNavigate }: PacientFormProps) {
           <div className={styles.cardIcon}>✦</div>
           <div>
             <h2 className={styles.cardTitle}>Paciente Manual</h2>
-            <p className={styles.cardSubtitle}>Ingresa los datos del paciente</p>
+            <p className={styles.cardSubtitle}>
+              Ingresa los datos del paciente
+            </p>
           </div>
         </div>
 
@@ -124,7 +153,11 @@ function PacientForm({ onNavigate }: PacientFormProps) {
           </div>
           <div className={styles.fieldGroup}>
             <label className={styles.label}>Sexo</label>
-            <select value={sexo} onChange={(e) => setSexo(e.target.value)} className={styles.input}>
+            <select
+              value={sexo}
+              onChange={(e) => setSexo(e.target.value)}
+              className={styles.input}
+            >
               <option value="">Seleccionar</option>
               <option value="Masculino">Masculino</option>
               <option value="Femenino">Femenino</option>
@@ -133,31 +166,25 @@ function PacientForm({ onNavigate }: PacientFormProps) {
         </div>
 
         <div className={styles.row}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label}>Talla (cm)</label>
-            <input
-              type="number"
-              placeholder="cm"
-              value={talla}
-              onChange={(e) => setTalla(e.target.value)}
-              className={styles.input}
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label}>Peso (kg)</label>
-            <input
-              type="number"
-              placeholder="kg"
-              value={peso}
-              onChange={(e) => setPeso(e.target.value)}
-              className={styles.input}
-            />
-          </div>
-        </div>
+  <div className={styles.fieldGroup}>
+    <label className={styles.label}>Talla (cm)</label>
+    <input
+      type="number"
+      placeholder="cm"
+      value={talla}
+      onChange={(e) => setTalla(e.target.value)}
+      className={styles.input}
+    />
+  </div>
+</div>
 
         <div className={styles.fieldGroup}>
           <label className={styles.label}>Raza / Etnia</label>
-          <select value={raza} onChange={(e) => setRaza(e.target.value)} className={styles.input}>
+          <select
+            value={raza}
+            onChange={(e) => setRaza(e.target.value)}
+            className={styles.input}
+          >
             <option value="">Seleccionar</option>
             <option value="Caucasico">Caucásico</option>
             <option value="Afrodescendiente">Afrodescendiente</option>
@@ -186,7 +213,9 @@ function PacientForm({ onNavigate }: PacientFormProps) {
           <div className={styles.cardIconRandom}>⟳</div>
           <div>
             <h2 className={styles.cardTitle}>Paciente Aleatorio</h2>
-            <p className={styles.cardSubtitle}>Genera un paciente con datos realistas</p>
+            <p className={styles.cardSubtitle}>
+              Genera un paciente con datos realistas
+            </p>
           </div>
         </div>
 

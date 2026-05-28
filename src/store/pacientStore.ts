@@ -29,6 +29,7 @@ export interface ManiobraGuardada {
     fvc: number;
     fev1: number;
     fev1fvc: number;
+    pef?: number;
   }
 }
 
@@ -47,7 +48,6 @@ export interface Paciente {
   sexo: string;
   talla: number;
   raza: string;
-  peso: number;
   fechaRegistro: string;
   espirometrias: DatosEspirometria[];
 }
@@ -55,8 +55,10 @@ export interface Paciente {
 interface PacientState {
   pacientes: Paciente[];
   pacienteSeleccionado: Paciente | null;
-  faseActual: "pre" | "post"
-  setFase: (fase: "pre" | "post") => void
+  faseActual: "pre" | "post";
+  origenCasoClinico: boolean;
+  setFase: (fase: "pre" | "post") => void;
+  setOrigenCasoClinico: (valor: boolean) => void;
   addPaciente: (paciente: Paciente) => void;
   setPacientes: (pacientes: Paciente[]) => void;
   seleccionarPaciente: (id: string) => void;
@@ -70,8 +72,10 @@ export const usePacientStore = create<PacientState>((set) => ({
   pacienteSeleccionado: null,
   patronActivo: null,
   faseActual: "pre",
+  origenCasoClinico: false,
 
   setFase: (fase) => set(() => ({ faseActual: fase })),
+  setOrigenCasoClinico: (valor) => set(() => ({ origenCasoClinico: valor })),
 
   addPaciente: (paciente) =>
     set((state) => ({

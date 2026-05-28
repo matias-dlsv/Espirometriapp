@@ -43,7 +43,6 @@ export default function IngresarPaciente({ onBack, onNavigate }: Props) {
   const [sexo, setSexo] = useState("");
   const [talla, setTalla] = useState("");
   const [raza, setRaza] = useState("");
-  const [peso, setPeso] = useState("");
 
   const addPaciente = usePacientStore((s) => s.addPaciente);
   const pacientes = usePacientStore((s) => s.pacientes);
@@ -75,7 +74,7 @@ export default function IngresarPaciente({ onBack, onNavigate }: Props) {
 
   const handleManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombre.trim() || !edad || !sexo || !talla || !raza || !peso) {
+    if (!nombre.trim() || !edad || !sexo || !talla || !raza) {
       toast.error("Completa todos los campos", {
         style: { background: "#CA3625", color: "#fff" },
       });
@@ -90,8 +89,7 @@ export default function IngresarPaciente({ onBack, onNavigate }: Props) {
       return;
     }
     const edadN = Number(edad),
-      tallaN = Number(talla),
-      pesoN = Number(peso);
+      tallaN = Number(talla);
     if (edadN < 3 || edadN > 100) {
       toast.error("Edad inválida (3–100)");
       return;
@@ -100,15 +98,11 @@ export default function IngresarPaciente({ onBack, onNavigate }: Props) {
       toast.error("Talla inválida (20–300 cm)");
       return;
     }
-    if (pesoN < 20 || pesoN > 300) {
-      toast.error("Peso inválido (20–300 kg)");
-      return;
-    }
 
     setCargando(true);
     try {
       const esp: DatosEspirometria = await invoke("procesar_nuevo_paciente", {
-        datos: { nombre, edad: edadN, talla: tallaN, peso: pesoN, sexo, raza },
+        datos: { nombre, edad: edadN, talla: tallaN, sexo, raza },
       });
       const nuevo: Paciente = {
         id: crypto.randomUUID(),
@@ -117,7 +111,6 @@ export default function IngresarPaciente({ onBack, onNavigate }: Props) {
         sexo,
         talla: tallaN,
         raza,
-        peso: pesoN,
         fechaRegistro: new Date().toLocaleDateString(),
         espirometrias: [esp],
       };
@@ -190,18 +183,6 @@ export default function IngresarPaciente({ onBack, onNavigate }: Props) {
                   style={s.input}
                 />
                 <span style={s.unit}>cm</span>
-              </div>
-            </Field>
-            <Field label="Peso">
-              <div style={s.inputWrap}>
-                <input
-                  type="number"
-                  placeholder="70"
-                  value={peso}
-                  onChange={(e) => setPeso(e.target.value)}
-                  style={s.input}
-                />
-                <span style={s.unit}>kg</span>
               </div>
             </Field>
           </div>

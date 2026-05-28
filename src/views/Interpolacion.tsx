@@ -17,7 +17,6 @@ export default function Interpolacion({
 }: InterpolacionProps) {
   const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
   const patronActivo = usePacientStore((state) => state.patronActivo);
-
   const faseActual = usePacientStore((state) => state.faseActual);
 
   const maniobrasGuardadas =
@@ -50,6 +49,14 @@ export default function Interpolacion({
       const sumaMejor = mejor.indices.fvc + mejor.indices.fev1;
       return sumaActual > sumaMejor ? actual : mejor;
     }).id;
+  }, [maniobras]);
+
+  // PEF máximo entre todas las maniobras → línea de referencia en el gráfico
+  const pefMaximo = useMemo(() => {
+    const valores = maniobras
+      .map((m) => m.indices.pef)
+      .filter((v): v is number => v != null);
+    return valores.length > 0 ? Math.max(...valores) : null;
   }, [maniobras]);
 
   if (maniobras.length === 0) {
@@ -115,6 +122,17 @@ export default function Interpolacion({
               maxX={12}
               minY={-4}
               maxY={12}
+              lineasReferencia={
+                pefMaximo != null
+                  ? [
+                      {
+                        valor: pefMaximo,
+                        color: "#000000",
+                        etiqueta: `PEF ${pefMaximo.toFixed(2)} L/s`,
+                      },
+                    ]
+                  : []
+              }
             />
           </div>
 
@@ -146,6 +164,7 @@ export default function Interpolacion({
                 <th>FVC (L)</th>
                 <th>FEV1 (L)</th>
                 <th>FEV1/FVC (%)</th>
+                <th>PEF (L/s)</th>
               </tr>
             </thead>
             <tbody>
@@ -173,6 +192,9 @@ export default function Interpolacion({
                     </td>
                     <td className={esMejor ? styles.best : ""}>
                       {(m.indices.fev1fvc * 100).toFixed(1)}%
+                    </td>
+                    <td className={esMejor ? styles.best : ""}>
+                      {m.indices.pef != null ? m.indices.pef.toFixed(2) : "—"}
                     </td>
                   </tr>
                 );

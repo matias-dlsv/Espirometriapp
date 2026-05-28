@@ -18,6 +18,21 @@
   flex-shrink: 0;
 }
 
+/* Empuja el badge a la derecha */
+.mejorBadgeHeader {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 2px solid v-bind; /* usa style inline para el color */
+  border-radius: 12px;
+  padding: 10px 24px;
+  background: rgba(138, 0, 26, 0.04);
+  border-color: v-bind;
+  flex-shrink: 0;
+}
+
 .header h1 {
   font-size: 1.2rem;
   font-weight: 700;
@@ -51,7 +66,6 @@
 }
 .backBtn:hover { color: #131E29; border-color: #415364; }
 
-/* Scroll vertical habilitado; items centrados horizontalmente */
 .content {
   flex: 1;
   display: flex;
@@ -63,7 +77,6 @@
   min-height: 0;
 }
 
-/* Wrapper de historia clínica — mismo ancho que la tabla */
 .historiaWrapper {
   width: 100%;
   max-width: 820px;
@@ -168,7 +181,6 @@
 }
 
 .llnCol { color: #D6D1CA !important; }
-
 .llnCell { color: #D6D1CA; }
 
 .llnValue {
@@ -198,6 +210,128 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
+/* ── Evaluación ── */
+
+.evaluacionSection {
+  width: 100%;
+  max-width: 820px;
+  background: #f7f5f3;
+  border: 1px solid #D6D1CA;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.evaluacionTitulo {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #758592;
+  font-weight: 600;
+}
+
+.evaluacionGrupo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evaluacionLabel {
+  font-size: 0.85rem;
+  color: #415364;
+  font-weight: 500;
+}
+
+.evaluacionOpciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.opcionBtn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #D6D1CA;
+  background: white;
+  color: #415364;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.opcionBtn:hover {
+  border-color: #8A001A;
+  color: #8A001A;
+}
+
+.opcionBtnActivo {
+  background: #8A001A;
+  border-color: #8A001A;
+  color: white;
+}
+
+.verificarBtn {
+  align-self: flex-start;
+  padding: 10px 24px;
+  background: #131E29;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.verificarBtn:disabled {
+  background: #D6D1CA;
+  color: #758592;
+  cursor: not-allowed;
+}
+
+.verificarBtn:not(:disabled):hover {
+  background: #415364;
+}
+
+.feedbackBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #D6D1CA;
+  padding-top: 16px;
+}
+
+.feedbackLinea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.feedbackLabel {
+  color: #758592;
+  min-width: 100px;
+}
+
+.feedbackRespuesta {
+  color: #131E29;
+  font-weight: 500;
+}
+
+.feedbackOk {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.feedbackError {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* ── Footer ── */
 
 .footer {
   padding: 14px 32px;
@@ -250,6 +384,7 @@
   color: #8A001A;
   font-size: 1.05rem;
 }
+
 .patientMeta {
   font-size: 0.75rem;
   color: #758592;

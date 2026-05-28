@@ -5,6 +5,10 @@ import { usePacientStore } from "../store/pacientStore";
 import { AppView, NavigationPayload } from "../App";
 import {
   aplicarPatron,
+  aplicarFalloEsfuerzoMaximo,
+  aplicarFalloVolumenExtrapolado,
+  aplicarFalloPefContinuo,
+  aplicarFalloTiempoEspiracion,
   calcularRespuestaBD,
   generarIndicesAleatorios,
   generarCriterios,
@@ -76,12 +80,14 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     const fev1M = indicesManiobra.fev1;
 
     const peakFlujo = fev1M * (1.45 + Math.random() * 0.15);
-    const peakVol = fvcM * (0.13 + Math.random() * 0.05);
+    const factorCompresionX = 0.7;
+    const peakVol =
+      fvcM * (0.13 + Math.random() * 0.05) * factorCompresionX * 1.1;
 
-    const cx = fvcM * 0.55;
+    const cx = fvcM * 0.25;
     const rx = fvcM * 0.12;
     const ry = 0.6;
-    const casiFvc = fvcM * 0.96;
+    const casiFvc = fvcM * 0.8 * factorCompresionX;
     const multiplicadorRuido = 0.6;
 
     const generarElipseOrganica = (
@@ -128,8 +134,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     for (let i = 1; i <= 100; i++) {
       const theta = Math.PI + (i / 100) * Math.PI;
       const x = cx_exh + rx_exh * Math.cos(theta);
-      const y =
-        -perturbar(ry * 1.3, 0.1 * multiplicadorRuido) * Math.sin(theta);
+      const y = -perturbar(ry * 1, 0.1 * multiplicadorRuido) * Math.sin(theta);
       bucle3Exhalacion.push([perturbar(x, 0.005), y]);
     }
 
@@ -141,7 +146,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       const x = cx_insp + cx_insp * Math.cos(theta);
       const flujoBase = -2.0 * Math.sin(theta);
       const deformacionAsimetrica = 1 + 0.3 * Math.sin(theta * 0.5);
-      const y = flujoBase * deformacionAsimetrica;
+      const y = flujoBase * deformacionAsimetrica * 0.7;
       inspiracionProfunda.push([
         perturbar(x, 0.005),
         perturbar(y, 0.03 * multiplicadorRuido),
@@ -152,14 +157,14 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     for (let i = 0; i <= 30; i++) {
       const t = i / 30;
       exhalacionForzada.push([
-        perturbar(t * peakVol, 0.001),
+        perturbar(t * peakVol * factorCompresionX, 0.001),
         perturbar(peakFlujo * Math.pow(t, 0.7), 0.01),
       ]);
     }
     for (let i = 1; i <= 300; i++) {
       const t = i / 300;
       const curveT = Math.pow(t, 0.7);
-      const vol = peakVol + (fvcM - peakVol) * curveT;
+      const vol = (peakVol + (fvcM - peakVol) * curveT) * factorCompresionX;
       const flujo = peakFlujo * Math.pow(1 - curveT, 1.5);
       exhalacionForzada.push([perturbar(vol, 0.002), perturbar(flujo, 0.01)]);
     }
@@ -170,7 +175,8 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     const nPuntosInhForzada = 200;
     for (let i = 0; i <= nPuntosInhForzada; i++) {
       const t = i / nPuntosInhForzada;
-      const vol = fvcM * (1 - t) + volResidual * t;
+      const volInicio = fvcM * factorCompresionX;
+      const vol = volInicio * (1 - t) + volResidual * t;
       const flujo =
         peakInspForzado *
         Math.sin(Math.PI * Math.pow(t, 0.75)) *
@@ -181,91 +187,121 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       ]);
     }
 
-    const idxInicioExhalacionForzada =
-      bucle1.length +
-      bucle2.length +
-      bucle3Inhalacion.length +
-      bucle3Exhalacion.length +
-      inspiracionProfunda.length;
-
-    const flujoVolumen: number[][] = [
-      ...bucle1,
-      ...bucle2,
-      ...bucle3Inhalacion,
-      ...bucle3Exhalacion,
-      ...inspiracionProfunda,
-      ...exhalacionForzada,
-      ...inhalacionPostForzada,
-    ];
-
     const tiempos = [
       0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6,
       0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,
       10.0,
     ];
-
     const propFvc = [
       0, 0.01, 0.02, 0.04, 0.05, 0.06, 0.08, 0.11, 0.16, 0.21, 0.3, 0.38, 0.45,
       0.51, 0.57, 0.62, 0.66, 0.7, 0.76, 0.83, 0.91, 0.95, 0.97, 0.99, 0.995,
       0.998, 0.999, 0.9995, 0.9998, 1.0,
     ];
-
     const earlyExponent = 2.8 + Math.random() * 0.8;
     const tTransFin = 0.25;
     const idxTransFin = tiempos.findIndex((t) => t >= tTransFin);
     const volEnTransFin = propFvc[idxTransFin] * fvcM;
 
-    const volumenTiempo: number[][] = tiempos.map((t, i) => {
+    const volumenTiempoBase: number[][] = tiempos.map((t, i) => {
       const volBase = propFvc[i] * fvcM;
-
       if (t <= tTransFin) {
         const tNorm = t / tTransFin;
         const volRamp = volEnTransFin * Math.pow(tNorm, earlyExponent);
         const blend = tNorm * tNorm * (3 - 2 * tNorm);
         return [t, Math.max(0, volRamp * (1 - blend) + volBase * blend)];
       }
-
       return [t, volBase];
     });
 
+    // VBE desde la curva V/T base
     let maxPendiente = 0;
     let idxMaxPend = 1;
-    for (let i = 1; i < volumenTiempo.length - 1; i++) {
-      if (volumenTiempo[i][0] > 0.2) break;
-      const dt = volumenTiempo[i + 1][0] - volumenTiempo[i - 1][0];
-      const dv = volumenTiempo[i + 1][1] - volumenTiempo[i - 1][1];
+    for (let i = 1; i < volumenTiempoBase.length - 1; i++) {
+      if (volumenTiempoBase[i][0] > 0.2) break;
+      const dt = volumenTiempoBase[i + 1][0] - volumenTiempoBase[i - 1][0];
+      const dv = volumenTiempoBase[i + 1][1] - volumenTiempoBase[i - 1][1];
       const pend = dv / dt;
       if (pend > maxPendiente) {
         maxPendiente = pend;
         idxMaxPend = i;
       }
     }
+    const vbeBase = Math.max(
+      0,
+      volumenTiempoBase[idxMaxPend][1] -
+        maxPendiente * volumenTiempoBase[idxMaxPend][0],
+    );
 
-    const tPico = volumenTiempo[idxMaxPend][0];
-    const vPico = volumenTiempo[idxMaxPend][1];
-    const vbe = Math.max(0, vPico - maxPendiente * tPico);
+    // ── Sortear criterios ────────────────────────────────────
+    const { criterios, falloKey } = generarCriterios();
 
-    const flujoVolumenFinal = aplicarPatron(
-      flujoVolumen,
+    // ── Aplicar fallos sobre el segmento correcto ────────────
+    let exhForzadaFinal = [...exhalacionForzada];
+    let inhalacionPostForzadaFinal = [...inhalacionPostForzada];
+    let vbeArtificial: number | undefined;
+
+    if (falloKey === "esfuerzomaximo") {
+      exhForzadaFinal = aplicarFalloEsfuerzoMaximo(exhForzadaFinal, fvcM);
+    } else if (falloKey === "pefcontinuo") {
+      exhForzadaFinal = aplicarFalloPefContinuo(exhForzadaFinal, fvcM);
+    } else if (falloKey === "tiempoespiracion") {
+      exhForzadaFinal = aplicarFalloTiempoEspiracion(exhForzadaFinal, fvcM);
+    } else if (falloKey === "volumenextrapolado") {
+      const resultado = aplicarFalloVolumenExtrapolado(
+        inhalacionPostForzadaFinal,
+        fvcM,
+      );
+      inhalacionPostForzadaFinal = resultado.inhalacion;
+      vbeArtificial = resultado.vbeArtificial;
+    }
+
+    // vtestables: omitir bucle1 y bucle2 del ensamblado
+    const segmentosTidal =
+      falloKey === "vtestables" ? [] : [...bucle1, ...bucle2];
+
+    const preExhalacion = [
+      ...segmentosTidal,
+      ...bucle3Inhalacion,
+      ...bucle3Exhalacion,
+      ...inspiracionProfunda,
+    ];
+
+    const idxInicioExhalacionForzada = preExhalacion.length;
+
+    const flujoVolumenEnsamblado: number[][] = [
+      ...preExhalacion,
+      ...exhForzadaFinal,
+      ...inhalacionPostForzadaFinal,
+    ];
+
+    const flujoVolumen = aplicarPatron(
+      flujoVolumenEnsamblado,
       fvcM,
       patronActivo,
       factorObstruccion,
     );
 
+    const pef = Math.max(
+      ...flujoVolumen
+        .slice(idxInicioExhalacionForzada)
+        .map(([, y]) => y)
+        .filter((y) => y > 0),
+    );
+
     return {
-      datosFlujoVolumen: flujoVolumenFinal,
-      datosVolumenTiempo: volumenTiempo,
-      indicesManiobra,
+      datosFlujoVolumen: flujoVolumen,
+      datosVolumenTiempo: volumenTiempoBase,
+      indicesManiobra: { ...indicesManiobra, pef },
       volResidual,
       idxInicioExhalacionForzada,
-      vbe,
-      criteriosManiobra: generarCriterios(), // ← nuevo
+      vbe: vbeArtificial ?? vbeBase,
+      criteriosManiobra: { criterios, falloKey },
     };
   }, [fev1, fvc, mls, patronActivo, faseActual]);
 
   const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
 
-  const generarUnaManiobra = () => {
+  const generarUnaManiobra = (sinFallos = false) => {
     const indices = generarIndicesAleatorios(
       fvc,
       fev1,
@@ -288,6 +324,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     const ry = 0.6;
     const casiFvc = fvcM * 0.96;
     const mr = 0.6;
+    const factorCompresionX = 0.7;
 
     const elipse = (
       cX: number,
@@ -320,6 +357,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
         -perturbar(ry * 1.1, 0.08 * mr) * Math.pow(Math.sin(theta), 0.8),
       ]);
     }
+
     const b3e: number[][] = [];
     const cxe = (cx - rx + casiFvc) / 2;
     const rxe = (casiFvc - (cx - rx)) / 2;
@@ -330,6 +368,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
         -perturbar(ry * 1.3, 0.1 * mr) * Math.sin(theta),
       ]);
     }
+
     const insp: number[][] = [];
     const cxi = casiFvc / 2;
     for (let i = 1; i <= 150; i++) {
@@ -343,11 +382,12 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
         ),
       ]);
     }
+
     const exh: number[][] = [];
     for (let i = 0; i <= 30; i++) {
       const t = i / 30;
       exh.push([
-        perturbar(t * peakVol, 0.001),
+        perturbar(t * peakVol * factorCompresionX, 0.001),
         perturbar(peakFlujo * Math.pow(t, 0.7), 0.01),
       ]);
     }
@@ -355,17 +395,19 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       const t = i / 300;
       const ct = Math.pow(t, 0.7);
       exh.push([
-        perturbar(peakVol + (fvcM - peakVol) * ct, 0.002),
+        perturbar((peakVol + (fvcM - peakVol) * ct) * factorCompresionX, 0.002),
         perturbar(peakFlujo * Math.pow(1 - ct, 1.5), 0.01),
       ]);
     }
+
     const vr = Math.random() * 0.09 + 0.005;
     const pkInsp = -(fev1M * (0.55 + Math.random() * 0.1));
     const inh: number[][] = [];
     for (let i = 0; i <= 200; i++) {
       const t = i / 200;
+      const volInicio = fvcM * factorCompresionX;
       inh.push([
-        perturbar(fvcM * (1 - t) + vr * t, 0.003),
+        perturbar(volInicio * (1 - t) + vr * t, 0.003),
         perturbar(
           pkInsp *
             Math.sin(Math.PI * Math.pow(t, 0.75)) *
@@ -375,27 +417,11 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
       ]);
     }
 
-    const flujoVolumen = aplicarPatron(
-      [
-        ...elipse(cx, rx, ry),
-        ...elipse(cx, rx, ry * 1.05),
-        ...b3i,
-        ...b3e,
-        ...insp,
-        ...exh,
-        ...inh,
-      ],
-      fvcM,
-      patronActivo,
-      factorObstruccion,
-    );
-
     const tiempos = [
       0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6,
       0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,
       10.0,
     ];
-
     const propFvc = [
       0, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.06, 0.09, 0.11, 0.16, 0.21,
       0.26, 0.3, 0.34, 0.38, 0.42, 0.45, 0.51, 0.59, 0.7, 0.78, 0.84, 0.91,
@@ -405,7 +431,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     const tTF = 0.25;
     const idxTF = tiempos.findIndex((t) => t >= tTF);
     const volTF = propFvc[idxTF] * fvcM;
-    const volumenTiempo: number[][] = tiempos.map((t, i) => {
+    const volumenTiempoBase: number[][] = tiempos.map((t, i) => {
       const vb = propFvc[i] * fvcM;
       if (t <= tTF) {
         const tn = t / tTF;
@@ -418,41 +444,101 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
 
     let maxP = 0;
     let idxMP = 1;
-    for (let i = 1; i < volumenTiempo.length - 1; i++) {
-      if (volumenTiempo[i][0] > 0.2) break;
-      const dt = volumenTiempo[i + 1][0] - volumenTiempo[i - 1][0];
-      const dv = volumenTiempo[i + 1][1] - volumenTiempo[i - 1][1];
+    for (let i = 1; i < volumenTiempoBase.length - 1; i++) {
+      if (volumenTiempoBase[i][0] > 0.2) break;
+      const dt = volumenTiempoBase[i + 1][0] - volumenTiempoBase[i - 1][0];
+      const dv = volumenTiempoBase[i + 1][1] - volumenTiempoBase[i - 1][1];
       if (dv / dt > maxP) {
         maxP = dv / dt;
         idxMP = i;
       }
     }
-    const vbe = Math.max(
+    const vbeBase = Math.max(
       0,
-      volumenTiempo[idxMP][1] - maxP * volumenTiempo[idxMP][0],
+      volumenTiempoBase[idxMP][1] - maxP * volumenTiempoBase[idxMP][0],
+    );
+
+    // ── Sortear criterios ────────────────────────────────────
+    const { criterios: criteriosOriginales, falloKey: falloKeyOriginal } =
+      generarCriterios();
+    const falloKey = sinFallos ? null : falloKeyOriginal;
+    const criterios = sinFallos
+      ? {
+          vtestables: true,
+          esfuerzomaximo: true,
+          volumenextrapolado: true,
+          pefcontinuo: true,
+          tiempoespiracion: true,
+        }
+      : criteriosOriginales;
+    // ── Aplicar fallos ───────────────────────────────────────
+    const b1 = elipse(cx, rx, ry);
+    const b2 = elipse(cx, rx, ry * 1.05);
+
+    let exhFinal = [...exh];
+    let inhFinal = [...inh];
+    let vbeArtificial: number | undefined;
+
+    if (falloKey === "esfuerzomaximo") {
+      exhFinal = aplicarFalloEsfuerzoMaximo(exhFinal, fvcM);
+    } else if (falloKey === "pefcontinuo") {
+      exhFinal = aplicarFalloPefContinuo(exhFinal, fvcM);
+    } else if (falloKey === "tiempoespiracion") {
+      exhFinal = aplicarFalloTiempoEspiracion(exhFinal, fvcM);
+    } else if (falloKey === "volumenextrapolado") {
+      const resultado = aplicarFalloVolumenExtrapolado(inhFinal, fvcM);
+      inhFinal = resultado.inhalacion;
+      vbeArtificial = resultado.vbeArtificial;
+    }
+
+    const segmentosTidal = falloKey === "vtestables" ? [] : [...b1, ...b2];
+    const preExh = [...segmentosTidal, ...b3i, ...b3e, ...insp];
+    const idxInicioExh = preExh.length;
+
+    const flujoVolumen = aplicarPatron(
+      [...preExh, ...exhFinal, ...inhFinal],
+      fvcM,
+      patronActivo,
+      factorObstruccion,
+    );
+
+    const pef = Math.max(
+      ...flujoVolumen
+        .slice(idxInicioExh)
+        .map(([, y]) => y)
+        .filter((y) => y > 0),
     );
 
     return {
       datosFlujoVolumen: flujoVolumen,
-      datosVolumenTiempo: volumenTiempo,
-      indices,
-      vbe,
-      criterios: generarCriterios(), // ← nuevo
+      datosVolumenTiempo: volumenTiempoBase,
+      indices: { ...indices, pef },
+      vbe: vbeArtificial ?? vbeBase,
+      criterios,
     };
   };
 
   const saltarAResultados = () => {
     if (!pacienteActual) return;
-    for (let i = 0; i < 3; i++) {
-      const m = generarUnaManiobra();
+
+    const yaGuardadas =
+      faseActual === "pre"
+        ? (pacienteActual.espirometrias[0]?.maniobras?.length ?? 0)
+        : (pacienteActual.espirometrias[0]?.maniobrasPost?.length ?? 0);
+
+    const faltan = Math.max(0, 3 - yaGuardadas);
+
+    for (let i = 0; i < faltan; i++) {
+      const m = generarUnaManiobra(true);
       guardarManiobra(pacienteActual.id, {
         datosFlujoVolumen: m.datosFlujoVolumen,
         datosVolumenTiempo: m.datosVolumenTiempo,
-        criterios: m.criterios, // ← usa los generados aleatoriamente
+        criterios: m.criterios,
         fecha: new Date().toISOString(),
         indices: m.indices,
       });
     }
+
     onNavigate("interpolacion");
   };
 
@@ -486,7 +572,14 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
   return (
     <div className={styles.layout}>
       <div className={styles.chartsColumn}>
-        <button onClick={onBack} className={styles.mobileBackBtn}>
+        <button
+          onClick={() => {
+            usePacientStore.getState().setPatron(null);
+            usePacientStore.getState().setOrigenCasoClinico(false);
+            onBack();
+          }}
+          className={styles.mobileBackBtn}
+        >
           ← Salir
         </button>
 
@@ -538,7 +631,14 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
               <span className={styles.patientName}>Sin paciente</span>
             )}
           </div>
-          <button onClick={onBack} className={styles.backButtonOutline}>
+          <button
+            onClick={() => {
+              usePacientStore.getState().setPatron(null);
+              usePacientStore.getState().setOrigenCasoClinico(false);
+              onBack();
+            }}
+            className={styles.backButtonOutline}
+          >
             Salir
           </button>
         </div>
@@ -602,7 +702,7 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
               volResidual,
               idxInicioExhalacionForzada,
               vbe,
-              criteriosGenerados: criteriosManiobra, // ← nuevo
+              criteriosGenerados: criteriosManiobra.criterios,
             })
           }
           className={styles.nextButton}

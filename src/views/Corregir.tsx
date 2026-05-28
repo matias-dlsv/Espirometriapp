@@ -16,6 +16,7 @@ const LABELS: Record<string, string> = {
   esfuerzomaximo: "Esfuerzo máximo",
   volumenextrapolado: "Volumen extrapolado aceptable (<100ml)",
   pefcontinuo: "PEF continuo y libre de artefactos",
+  tiempoespiracion: "Tiempo de espiración ≥ 6 segundos",
 };
 
 export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
@@ -32,11 +33,26 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const umbralVBE = Math.max(0.15, fvc * 0.05);
   const vbeCumple = vbe < umbralVBE;
 
-  const criteriosGenerados = data?.criteriosGenerados ?? {
-    vtestables: true,
-    esfuerzomaximo: true,
-    volumenextrapolado: true,
-    pefcontinuo: true,
+  const tiempoEspiracion = (() => {
+    const pts = data?.datosVolumenTiempo ?? [];
+    if (pts.length === 0) return 0;
+    const fvcObservada = data?.indices?.fvc ?? 0;
+    const umbral = fvcObservada * 0.97;
+    for (let i = pts.length - 1; i >= 0; i--) {
+      if (pts[i][1] >= umbral) return pts[i][0];
+    }
+    return pts[pts.length - 1][0];
+  })();
+  const tiempoEspiracionCumple = tiempoEspiracion >= 6;
+
+  const criteriosGenerados = {
+    ...(data?.criteriosGenerados ?? {
+      vtestables: true,
+      esfuerzomaximo: true,
+      volumenextrapolado: true,
+      pefcontinuo: true,
+      tiempoespiracion: true,
+    }),
   };
 
   const hayFallos = Object.values(criteriosGenerados).some((v) => !v);
@@ -46,15 +62,14 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
     esfuerzomaximo: false,
     volumenextrapolado: false,
     pefcontinuo: false,
+    tiempoespiracion: false,
   });
 
-  // false = estado normal | true = el usuario intentó guardar y había fallos
   const [intentoGuardar, setIntentoGuardar] = useState(false);
 
   const todosMarcados = Object.values(criterios).every(Boolean);
 
   const handleToggleCriterio = (key: keyof typeof criterios) => {
-    // Bloqueado si ya intentó guardar y ese criterio falla automáticamente
     if (intentoGuardar && !criteriosGenerados[key]) return;
     setCriterios((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -66,13 +81,23 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
   const handleGuardarYContinuar = () => {
     if (!todosMarcados || !data || !pacienteActual) return;
 
-    // Si hay fallos automáticos: mostrar banner y bloquear — no guardar
     if (hayFallos) {
       setIntentoGuardar(true);
+      // Actualizamos el estado para forzar a "OFF" (false) los switches que no cumplen los criterios
+      setCriterios((prev) => {
+        const nuevosCriterios = { ...prev };
+        (
+          Object.keys(criteriosGenerados) as Array<keyof typeof criterios>
+        ).forEach((key) => {
+          if (!criteriosGenerados[key]) {
+            nuevosCriterios[key] = false;
+          }
+        });
+        return nuevosCriterios;
+      });
       return;
     }
 
-    // Sin fallos: guardar y navegar
     const cantidadAntes =
       faseActual === "pre"
         ? (pacienteActual.espirometrias[0]?.maniobras?.length ?? 0)
@@ -133,6 +158,17 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
             maxX={12}
             minY={-4}
             maxY={12}
+            lineasReferencia={
+              data.indices?.pef != null
+                ? [
+                    {
+                      valor: data.indices.pef,
+                      color: "#000000",
+                      etiqueta: `PEF ${data.indices.pef.toFixed(2)} L/s`,
+                    },
+                  ]
+                : []
+            }
           />
         </div>
 
@@ -148,6 +184,13 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
             maxX={11}
             minY={-0.2}
             maxY={Math.ceil(fvc) + 1}
+            lineasReferencia={[
+              {
+                valor: tiempoEspiracion,
+                color: tiempoEspiracionCumple ? "#10b981" : "#ef4444",
+                etiqueta: `${tiempoEspiracion.toFixed(1)}s`,
+              },
+            ]}
           />
         </div>
       </div>
@@ -207,6 +250,16 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
                   {(data.indices.fev1fvc * 100).toFixed(1)}%
                 </span>
               </div>
+              <div className={styles.indiceItem}>
+                <span className={styles.indiceLabel}>
+                  <TooltipTerm term="PEF" />
+                </span>
+                <span className={styles.indiceValor}>
+                  {data.indices.pef != null
+                    ? `${data.indices.pef.toFixed(2)} L/s`
+                    : "—"}
+                </span>
+              </div>
             </div>
             <div className={styles.vbeSeparador} />
             <div className={styles.vbeRow}>
@@ -222,10 +275,10 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
                 {vbeMl} ml
               </span>
             </div>
+            <div className={styles.vbeSeparador} />
           </div>
         )}
 
-        {/* Banner: solo aparece tras intentar guardar con fallos automáticos */}
         {intentoGuardar && hayFallos && (
           <div
             style={{
@@ -261,7 +314,6 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           <div className={styles.checkList}>
             {(Object.keys(criterios) as Array<keyof typeof criterios>).map(
               (key) => {
-                // Solo se pone rojo y bloqueado después de intentar guardar
                 const esFallo = intentoGuardar && !criteriosGenerados[key];
                 const bloqueado = esFallo;
                 return (
@@ -271,18 +323,19 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
                     style={{
                       color: esFallo ? "#ef4444" : undefined,
                       cursor: bloqueado ? "not-allowed" : "pointer",
-                      opacity: 1,
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={criterios[key]}
-                      disabled={bloqueado}
-                      onChange={() => handleToggleCriterio(key)}
-                      style={{
-                        accentColor: esFallo ? "#ef4444" : undefined,
-                      }}
-                    />
+                    <div className={styles.switchWrapper}>
+                      <input
+                        type="checkbox"
+                        // Adicionalmente forzamos a que, si es fallo, se renderice apagado como medida de seguridad visual
+                        checked={criterios[key] && !esFallo}
+                        disabled={bloqueado}
+                        onChange={() => handleToggleCriterio(key)}
+                        className={styles.switchInput}
+                      />
+                      <span className={styles.switchTrack} />
+                    </div>
                     {LABELS[key]}
                     {esFallo && (
                       <span
@@ -303,24 +356,17 @@ export default function Corregir({ onBack, onNavigate, data }: CorregirProps) {
           </div>
         </div>
 
-        {/* Botón: cambia a Descartar si intentó guardar con fallos */}
-        {intentoGuardar && hayFallos ? (
-          <button
-            onClick={onBack}
-            className={styles.nextButton}
-            style={{ background: "#7f1d1d", borderColor: "#991b1b" }}
-          >
-            Descartar maniobra →
-          </button>
-        ) : (
-          <button
-            onClick={handleGuardarYContinuar}
-            disabled={!todosMarcados}
-            className={`${styles.nextButton} ${!todosMarcados ? styles.nextButtonDisabled : ""}`}
-          >
-            Guardar y Continuar →
-          </button>
-        )}
+        <button
+          onClick={handleGuardarYContinuar}
+          disabled={!todosMarcados || (intentoGuardar && hayFallos)}
+          className={`${styles.nextButton} ${!todosMarcados || (intentoGuardar && hayFallos) ? styles.nextButtonDisabled : ""}`}
+        >
+          Guardar y Continuar →
+        </button>
+
+        <button onClick={onBack} className={styles.discardButton}>
+          Descartar maniobra
+        </button>
       </aside>
     </div>
   );

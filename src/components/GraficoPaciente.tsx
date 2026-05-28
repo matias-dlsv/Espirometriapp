@@ -7,6 +7,7 @@ import {
   GridComponent,
   DatasetComponent,
   LegendComponent,
+  MarkLineComponent,
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { LineSeriesOption } from "echarts/charts";
@@ -17,9 +18,16 @@ echarts.use([
   GridComponent,
   DatasetComponent,
   LegendComponent,
+  MarkLineComponent,
   LineChart,
   CanvasRenderer,
 ]);
+
+interface LineaReferencia {
+  valor: number;
+  color?: string;
+  etiqueta?: string;
+}
 
 interface GraficoProps {
   titulo?: string;
@@ -36,6 +44,7 @@ interface GraficoProps {
   minY?: number;
   maxY?: number;
   duracionAnimacion?: number;
+  lineasReferencia?: LineaReferencia[];
 }
 
 export interface GraficoRef {
@@ -60,6 +69,7 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       minY = 0,
       maxY = 10,
       duracionAnimacion = 15000,
+      lineasReferencia,
     },
     ref,
   ) => {
@@ -67,14 +77,35 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     const instanceRef = useRef<echarts.ECharts | null>(null);
     const animationRef = useRef<number | null>(null);
 
-    // Refs para que ejecutarAnimacion siempre lea los valores actuales
-    // sin necesitar ser recreada cuando cambian las props.
     const dataRef = useRef(data);
     const mostrarEstaticoRef = useRef(mostrarEstatico);
     const multiDataRef = useRef(multiData);
     dataRef.current = data;
     mostrarEstaticoRef.current = mostrarEstatico;
     multiDataRef.current = multiData;
+
+    const buildMarkLine = (lineas?: LineaReferencia[]) => {
+      if (!lineas || lineas.length === 0) return undefined;
+      return {
+        silent: true,
+        symbol: "none",
+        data: lineas.map((lr) => ({
+          yAxis: lr.valor,
+          lineStyle: {
+            color: lr.color ?? "#f59e0b",
+            width: 1.5,
+            type: "dashed" as const,
+          },
+          label: {
+            show: true,
+            position: "insideEndTop" as const,
+            formatter: lr.etiqueta ?? `${lr.valor.toFixed(2)}`,
+            color: lr.color ?? "#f59e0b",
+            fontSize: 11,
+          },
+        })),
+      };
+    };
 
     const buildOption = (
       currentData: number[][] = [],
@@ -84,6 +115,7 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
 
       if (multiData && multiData.length > 0) {
         multiData.forEach((serie, index) => {
+          // Solo la primera serie lleva las líneas de referencia
           series.push({
             name: serie.label,
             data: serie.puntos,
@@ -92,6 +124,9 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
             showSymbol: false,
             lineStyle: { width: 2, color: serie.color },
             z: 3 + index,
+            ...(index === 0
+              ? { markLine: buildMarkLine(lineasReferencia) }
+              : {}),
           });
         });
       } else {
@@ -112,6 +147,7 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
           showSymbol: false,
           lineStyle: { width: 3, color: colorLinea },
           z: 2,
+          markLine: buildMarkLine(lineasReferencia),
         });
       }
 
@@ -176,13 +212,11 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       const chart = echarts.init(chartRef.current);
       instanceRef.current = chart;
 
-      // ResizeObserver: reacciona cuando el contenedor cambia de tamaño
       const ro = new ResizeObserver(() => {
         chart.resize();
       });
       ro.observe(chartRef.current);
 
-      // fallback para window resize
       const handleResize = () => chart.resize();
       window.addEventListener("resize", handleResize);
 
@@ -196,7 +230,6 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
     }, []);
 
     // ── Efecto 2: actualizar opciones cuando cambian props ────────────────
-    // NO destruye el gráfico, solo llama setOption.
     useEffect(() => {
       const chart = instanceRef.current;
       if (!chart) return;
@@ -223,6 +256,7 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       data,
       dataSecundaria,
       multiData,
+      lineasReferencia,
     ]);
 
     // ── Imperativo: ejecutarAnimacion ─────────────────────────────────────
@@ -271,7 +305,7 @@ const GraficoPaciente = forwardRef<GraficoRef, GraficoProps>(
       resize: () => {
         instanceRef.current?.resize();
       },
-    })); // sin dependencias — usa refs para leer valores actuales
+    }));
 
     return (
       <div

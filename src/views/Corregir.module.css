@@ -120,7 +120,7 @@
 }
 
 .nextButton {
-  margin-top: auto;
+  margin-top: 0;
   background: #8A001A;
   border: none;
   color: white;
@@ -277,4 +277,77 @@
   font-size: 0.75rem;
   color: #758592;
   display: block;
+}
+
+.switchWrapper {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.switchInput {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.switchTrack {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #334155;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.switchTrack::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #94a3b8;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.switchInput:checked + .switchTrack {
+  background: #3b82f6;
+}
+
+.switchInput:checked + .switchTrack::after {
+  transform: translateX(16px);
+  background: white;
+}
+
+.switchInput:disabled + .switchTrack {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.discardButton {
+  margin-top: 8px;
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid #7f1d1d;
+  border-radius: 8px;
+  color: #f87171;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.discardButton:hover {
+  background: #450a0a;
+}
+
+.switchToggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
 }

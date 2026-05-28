@@ -1,7 +1,7 @@
 import styles from "./Resultado.module.css";
 import { AppView, NavigationPayload } from "../App";
 import { usePacientStore, ManiobraGuardada } from "../store/pacientStore";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import TooltipTerm from "../components/ToolTipTerm.tsx";
 import HistoriaClinica from "../components/HistoriaClinica.tsx";
 
@@ -35,6 +35,109 @@ const interpretarZ = (z: number): { label: string; color: string } => {
 };
 
 // ============================================================
+// HELPERS EVALUACIÓN
+// ============================================================
+type Fila = {
+  variable: string;
+  unidad: string;
+  real: number;
+  realPost?: number;
+  teorico: number;
+  mls: { m: number; l: number; s: number };
+  esRatio?: boolean;
+};
+
+const esPatronCorrecto = (seleccion: string | null, filas: Fila[]): boolean => {
+  const fvcFila = filas.find((f) => f.variable === "FVC");
+  const fev1fvcFila = filas.find((f) => f.variable === "FEV1/FVC");
+  if (!fvcFila || !fev1fvcFila) return false;
+  const zFvc = calcularZScore(
+    fvcFila.real,
+    fvcFila.mls.m,
+    fvcFila.mls.l,
+    fvcFila.mls.s,
+  );
+  const zRatio = calcularZScore(
+    fev1fvcFila.real,
+    fev1fvcFila.mls.m,
+    fev1fvcFila.mls.l,
+    fev1fvcFila.mls.s,
+  );
+  const esObstructivo = zRatio < -1.645;
+  const esRestrictivo = !esObstructivo && zFvc < -1.645;
+  const esNormal = !esObstructivo && !esRestrictivo;
+  if (seleccion === "Normal") return esNormal;
+  if (seleccion === "Obstructivo") return esObstructivo;
+  if (seleccion === "Restrictivo") return esRestrictivo;
+  return false;
+};
+
+const esSeveridadCorrecta = (
+  seleccion: string | null,
+  filas: Fila[],
+): boolean => {
+  const fvcFila = filas.find((f) => f.variable === "FVC");
+  const fev1Fila = filas.find((f) => f.variable === "FEV1");
+  const fev1fvcFila = filas.find((f) => f.variable === "FEV1/FVC");
+  if (!fvcFila || !fev1Fila || !fev1fvcFila) return false;
+  const zRatio = calcularZScore(
+    fev1fvcFila.real,
+    fev1fvcFila.mls.m,
+    fev1fvcFila.mls.l,
+    fev1fvcFila.mls.s,
+  );
+  const esObstructivo = zRatio < -1.645;
+  const zRef = esObstructivo
+    ? calcularZScore(
+        fev1Fila.real,
+        fev1Fila.mls.m,
+        fev1Fila.mls.l,
+        fev1Fila.mls.s,
+      )
+    : calcularZScore(fvcFila.real, fvcFila.mls.m, fvcFila.mls.l, fvcFila.mls.s);
+  if (seleccion === "Leve") return zRef >= -2.5 && zRef < -1.645;
+  if (seleccion === "Moderado") return zRef >= -4.0 && zRef < -2.5;
+  if (seleccion === "Grave") return zRef < -4.0;
+  return false;
+};
+
+const esRespuestaBDCorrecta = (
+  seleccion: string | null,
+  filas: Fila[],
+): boolean => {
+  const fvcFila = filas.find((f) => f.variable === "FVC");
+  const fev1Fila = filas.find((f) => f.variable === "FEV1");
+  if (!fvcFila || !fev1Fila || !fvcFila.realPost || !fev1Fila.realPost)
+    return false;
+  const deltaFvc = ((fvcFila.realPost - fvcFila.real) / fvcFila.teorico) * 100;
+  const deltaFev1 =
+    ((fev1Fila.realPost - fev1Fila.real) / fev1Fila.teorico) * 100;
+  const responde = deltaFvc >= 10 || deltaFev1 >= 10;
+  return seleccion === "Sí responde" ? responde : !responde;
+};
+
+// ============================================================
+// FEEDBACK LINEA
+// ============================================================
+const FeedbackLinea = ({
+  label,
+  correcto,
+  respuesta,
+}: {
+  label: string;
+  correcto: boolean;
+  respuesta: string;
+}) => (
+  <div className={styles.feedbackLinea}>
+    <span className={styles.feedbackLabel}>{label}:</span>
+    <span className={styles.feedbackRespuesta}>{respuesta}</span>
+    <span className={correcto ? styles.feedbackOk : styles.feedbackError}>
+      {correcto ? "✓ Correcto" : "✗ Incorrecto"}
+    </span>
+  </div>
+);
+
+// ============================================================
 // HELPERS
 // ============================================================
 const encontrarMejor = (
@@ -52,6 +155,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
   const pacienteActual = usePacientStore((state) => state.pacienteSeleccionado);
   const patronActivo = usePacientStore((state) => state.patronActivo);
   const faseActual = usePacientStore((state) => state.faseActual);
+  const origenCasoClinico = usePacientStore((state) => state.origenCasoClinico);
 
   const maniobrasPreRaw = pacienteActual?.espirometrias?.[0]?.maniobras ?? [];
   const maniobrasPostRaw =
@@ -79,7 +183,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
 
   const hayPost = maniobrasPostRaw.length > 0 && mejorPost;
 
-  const filas = mejorPre
+  const filas: Fila[] = mejorPre
     ? [
         {
           variable: "FVC",
@@ -109,13 +213,33 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
       ]
     : [];
 
+  const pefPre = mejorPre?.indices?.pef ?? null;
+  const pefPost = mejorPost?.indices?.pef ?? null;
+
   const formatear = (val: number, esRatio?: boolean, unidad?: string) =>
     esRatio ? `${(val * 100).toFixed(1)}%` : `${val.toFixed(2)} ${unidad}`;
 
   const colorPct = (pct: number) =>
     pct >= 80 ? "#10b981" : pct >= 70 ? "#f59e0b" : "#ef4444";
 
-  // ── Estado vacío ───────────────────────────────────────────────────────────
+  // ── Evaluación ────────────────────────────────────────────
+  const [patronSeleccionado, setPatronSeleccionado] = useState<string | null>(
+    null,
+  );
+  const [severidadSeleccionada, setSeveridadSeleccionada] = useState<
+    string | null
+  >(null);
+  const [respuestaBDSeleccionada, setRespuestaBDSeleccionada] = useState<
+    string | null
+  >(null);
+  const [mostrarResultado, setMostrarResultado] = useState(false);
+
+  const puedeVerificar =
+    !!patronSeleccionado &&
+    (patronSeleccionado === "Normal" || !!severidadSeleccionada) &&
+    (!hayPost || !!respuestaBDSeleccionada);
+
+  // ── Estado vacío ──────────────────────────────────────────
   if (!mejorPre) {
     return (
       <div className={styles.container}>
@@ -160,47 +284,46 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
             <span className={styles.patronBadge}>{patronActivo.nombre}</span>
           )}
         </div>
+
+        {/* Badge mejor maniobra — empujado a la derecha */}
+        <div className={styles.mejorBadgeHeader}>
+          <span className={styles.mejorLabel}>Mejor maniobra</span>
+          <span className={styles.mejorNumero} style={{ color: colorMejor }}>
+            {faseActual === "pre"
+              ? `M${indicePreActual + 1}`
+              : `M${indicePostActual + 1}`}
+          </span>
+        </div>
       </header>
 
       <main className={styles.content}>
-        {/* ── Historia clínica (colapsada por defecto) ── */}
-        <div className={styles.historiaWrapper}>
-          <HistoriaClinica
-            patronNombre={patronActivo?.nombre}
-            semilla={pacienteActual?.id ?? pacienteActual?.nombre}
-          />
-        </div>
-
-        <div className={styles.mejorBadgeWrapper}>
-          <div
-            className={styles.mejorBadge}
-            style={{ borderColor: colorMejor }}
-          >
-            <span className={styles.mejorLabel}>Mejor maniobra</span>
-            <span className={styles.mejorNumero} style={{ color: colorMejor }}>
-              {faseActual === "pre"
-                ? `M${indicePreActual + 1}`
-                : `M${indicePostActual + 1}`}
-            </span>
+        {origenCasoClinico && (
+          <div className={styles.historiaWrapper}>
+            <HistoriaClinica
+              patronNombre={patronActivo?.nombre}
+              semilla={pacienteActual?.id ?? pacienteActual?.nombre}
+            />
           </div>
-        </div>
+        )}
 
         <section className={styles.tableSection}>
           <table className={styles.resultsTable}>
             <thead>
               <tr>
                 <th>Variable</th>
-                <th>Pre-BD</th>
-                {hayPost && <th>Post-BD</th>}
                 <th>Teórico</th>
-                <th>% Pre</th>
-                {hayPost && <th>% Post</th>}
-                <th className={styles.llnCol}>
-                  <TooltipTerm term="Z-score" />
+                <th>Pre-BD</th>
+                <th>
+                  <TooltipTerm term="Z-score">Z-Pre</TooltipTerm>
                 </th>
-                <th className={styles.llnCol}>
-                  <TooltipTerm term="LLN" />
-                </th>
+                <th>%Pre/T</th>
+                {hayPost && <th>Post-BD</th>}
+                {hayPost && (
+                  <th>
+                    <TooltipTerm term="Z-score">Z-Pre</TooltipTerm>
+                  </th>
+                )}
+                {hayPost && <th>%Post/T</th>}
               </tr>
             </thead>
             <tbody>
@@ -217,19 +340,14 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                   const pctPre = teorico > 0 ? (real / teorico) * 100 : 0;
                   const pctPost =
                     realPost && teorico > 0 ? (realPost / teorico) * 100 : null;
-
                   const zPre = calcularZScore(real, mls.m, mls.l, mls.s);
-                  const { label: zLabel, color: zColor } = interpretarZ(zPre);
-
-                  const lln = (() => {
-                    if (mls.m <= 0 || mls.s <= 0) return null;
-                    if (Math.abs(mls.l) < 1e-10) {
-                      return mls.m * Math.exp(-1.645 * mls.s);
-                    }
-                    const base = 1 - 1.645 * mls.l * mls.s;
-                    if (base <= 0) return null;
-                    return mls.m * Math.pow(base, 1 / mls.l);
-                  })();
+                  const { label: zLabelPre, color: zColorPre } =
+                    interpretarZ(zPre);
+                  const zPost = realPost
+                    ? calcularZScore(realPost, mls.m, mls.l, mls.s)
+                    : NaN;
+                  const { label: zLabelPost, color: zColorPost } =
+                    interpretarZ(zPost);
 
                   return (
                     <tr key={variable}>
@@ -244,18 +362,20 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                           variable
                         )}
                       </td>
+                      <td className={styles.teoricoCell}>
+                        {formatear(teorico, esRatio, unidad)}
+                      </td>
                       <td className={styles.realCell}>
                         {formatear(real, esRatio, unidad)}
                       </td>
-                      {hayPost && (
-                        <td className={styles.postCell}>
-                          {realPost
-                            ? formatear(realPost, esRatio, unidad)
-                            : "—"}
-                        </td>
-                      )}
-                      <td className={styles.teoricoCell}>
-                        {formatear(teorico, esRatio, unidad)}
+                      <td>
+                        <span
+                          className={styles.zscoreBadge}
+                          style={{ color: zColorPre, borderColor: zColorPre }}
+                          title={zLabelPre}
+                        >
+                          {isNaN(zPre) ? "—" : zPre.toFixed(2)}
+                        </span>
                       </td>
                       <td>
                         <span
@@ -268,6 +388,31 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                           {pctPre.toFixed(1)}%
                         </span>
                       </td>
+                      {hayPost && (
+                        <td className={styles.postCell}>
+                          {realPost
+                            ? formatear(realPost, esRatio, unidad)
+                            : "—"}
+                        </td>
+                      )}
+                      {hayPost && (
+                        <td>
+                          {realPost ? (
+                            <span
+                              className={styles.zscoreBadge}
+                              style={{
+                                color: zColorPost,
+                                borderColor: zColorPost,
+                              }}
+                              title={zLabelPost}
+                            >
+                              {isNaN(zPost) ? "—" : zPost.toFixed(2)}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      )}
                       {hayPost && (
                         <td>
                           {pctPost !== null ? (
@@ -285,27 +430,28 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                           )}
                         </td>
                       )}
-                      <td>
-                        <span
-                          className={styles.zscoreBadge}
-                          style={{ color: zColor, borderColor: zColor }}
-                          title={zLabel}
-                        >
-                          {isNaN(zPre) ? "—" : zPre.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className={styles.llnCell}>
-                        {lln !== null ? (
-                          <span className={styles.llnValue}>
-                            {formatear(lln, esRatio, unidad)}
-                          </span>
-                        ) : (
-                          <span className={styles.llnPending}>—</span>
-                        )}
-                      </td>
                     </tr>
                   );
                 },
+              )}
+
+              {pefPre != null && (
+                <tr>
+                  <td className={styles.variableCell}>
+                    <TooltipTerm term="PEF" />
+                  </td>
+                  <td className={styles.teoricoCell}>—</td>
+                  <td className={styles.realCell}>{pefPre.toFixed(2)} L/s</td>
+                  <td>—</td>
+                  <td>—</td>
+                  {hayPost && (
+                    <td className={styles.postCell}>
+                      {pefPost != null ? `${pefPost.toFixed(2)} L/s` : "—"}
+                    </td>
+                  )}
+                  {hayPost && <td>—</td>}
+                  {hayPost && <td>—</td>}
+                </tr>
               )}
             </tbody>
           </table>
@@ -320,6 +466,107 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
           <span style={{ color: "#f97316" }}>−4.0 a −2.5 Moderado ↓</span>
           <span style={{ color: "#ef4444" }}>&lt; −4.0 Grave ↓</span>
         </div>
+
+        {/* ── Evaluación ── */}
+        <section className={styles.evaluacionSection}>
+          <span className={styles.evaluacionTitulo}>Interpretación</span>
+
+          <div className={styles.evaluacionGrupo}>
+            <span className={styles.evaluacionLabel}>Patrón</span>
+            <div className={styles.evaluacionOpciones}>
+              {["Normal", "Obstructivo", "Restrictivo"].map((op) => (
+                <button
+                  key={op}
+                  onClick={() => {
+                    setPatronSeleccionado(op);
+                    if (op === "Normal") setSeveridadSeleccionada(null);
+                    setMostrarResultado(false);
+                  }}
+                  className={`${styles.opcionBtn} ${patronSeleccionado === op ? styles.opcionBtnActivo : ""}`}
+                >
+                  {op}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {patronSeleccionado && patronSeleccionado !== "Normal" && (
+            <div className={styles.evaluacionGrupo}>
+              <span className={styles.evaluacionLabel}>Severidad</span>
+              <div className={styles.evaluacionOpciones}>
+                {["Leve", "Moderado", "Grave"].map((op) => (
+                  <button
+                    key={op}
+                    onClick={() => {
+                      setSeveridadSeleccionada(op);
+                      setMostrarResultado(false);
+                    }}
+                    className={`${styles.opcionBtn} ${severidadSeleccionada === op ? styles.opcionBtnActivo : ""}`}
+                  >
+                    {op}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hayPost && (
+            <div className={styles.evaluacionGrupo}>
+              <span className={styles.evaluacionLabel}>
+                Respuesta broncodilatadora
+              </span>
+              <div className={styles.evaluacionOpciones}>
+                {["Sí responde", "No responde"].map((op) => (
+                  <button
+                    key={op}
+                    onClick={() => {
+                      setRespuestaBDSeleccionada(op);
+                      setMostrarResultado(false);
+                    }}
+                    className={`${styles.opcionBtn} ${respuestaBDSeleccionada === op ? styles.opcionBtnActivo : ""}`}
+                  >
+                    {op}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            className={styles.verificarBtn}
+            disabled={!puedeVerificar}
+            onClick={() => setMostrarResultado(true)}
+          >
+            Verificar
+          </button>
+
+          {mostrarResultado && (
+            <div className={styles.feedbackBox}>
+              <FeedbackLinea
+                label="Patrón"
+                correcto={esPatronCorrecto(patronSeleccionado, filas)}
+                respuesta={patronSeleccionado!}
+              />
+              {patronSeleccionado !== "Normal" && (
+                <FeedbackLinea
+                  label="Severidad"
+                  correcto={esSeveridadCorrecta(severidadSeleccionada, filas)}
+                  respuesta={severidadSeleccionada!}
+                />
+              )}
+              {hayPost && (
+                <FeedbackLinea
+                  label="Respuesta BD"
+                  correcto={esRespuestaBDCorrecta(
+                    respuestaBDSeleccionada,
+                    filas,
+                  )}
+                  respuesta={respuestaBDSeleccionada!}
+                />
+              )}
+            </div>
+          )}
+        </section>
       </main>
 
       <footer className={styles.footer}>
@@ -336,6 +583,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
         )}
         <button
           onClick={() => {
+            usePacientStore.getState().setOrigenCasoClinico(false);
             usePacientStore.getState().setFase("pre");
             onNavigate("welcome");
           }}

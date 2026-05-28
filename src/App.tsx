@@ -29,6 +29,7 @@ export interface NavigationPayload {
     fvc: number;
     fev1: number;
     fev1fvc: number;
+    pef?: number;
   };
   volResidual?: number;
   idxInicioExhalacionForzada?: number;
