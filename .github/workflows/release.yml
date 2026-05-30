@@ -1,20 +1,38 @@
 name: "Construir y Publicar App"
 
-# Esto permite que lo ejecutes manualmente desde la página de GitHub
 on:
   workflow_dispatch:
 
 jobs:
   build-tauri:
     permissions:
-      contents: write # Permite a GitHub subir los archivos a tu repo
+      contents: write
     strategy:
       fail-fast: false
       matrix:
-        # Aquí le decimos qué sistemas operativos usar
-        platform: [macos-latest, ubuntu-22.04, windows-latest]
+        include:
+          # ✅ Mac Intel (2019 e inferiores)
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+            rust-target: x86_64-apple-darwin
+
+          # ✅ Mac Apple Silicon (M1/M2/M3/M4)
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+            rust-target: aarch64-apple-darwin
+
+          # Windows (sin cambios)
+          - platform: windows-latest
+            args: ""
+            rust-target: ""
+
+          # Linux (sin cambios)
+          - platform: ubuntu-22.04
+            args: ""
+            rust-target: ""
 
     runs-on: ${{ matrix.platform }}
+
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
@@ -22,10 +40,13 @@ jobs:
       - name: Instalar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22 # Usa la versión de Node que estés usando
+          node-version: 22
 
       - name: Instalar Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          # 👇 Esto es clave: instala el compilador para la arquitectura Mac correcta
+          targets: ${{ matrix.rust-target }}
 
       - name: Instalar dependencias de Linux (Solo corre en Ubuntu)
         if: matrix.platform == 'ubuntu-22.04'
@@ -41,7 +62,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v0.1.1 # El nombre de esta versión
+          tagName: v0.1.1
           releaseName: "EspiroSim v0.1.1"
           releaseDraft: false
           prerelease: false
+          # 👇 Pasa el target correcto según la plataforma
+          args: ${{ matrix.args }}
