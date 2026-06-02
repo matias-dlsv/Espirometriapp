@@ -38,11 +38,6 @@ export interface CriteriosAceptabilidad {
 
 export type FalloKey = keyof CriteriosAceptabilidad | "tiempoespiracion" | null;
 
-/**
- * Probabilidad global de que una maniobra tenga UN fallo.
- * Si cae en fallo, se sortea al azar cuál de los 5 criterios falla.
- * Garantía: máximo un criterio falla a la vez.
- */
 const PROB_FALLO_GLOBAL = 0.3;
 
 export const generarCriterios = (): {
@@ -58,8 +53,7 @@ export const generarCriterios = (): {
         esfuerzomaximo: true,
         volumenextrapolado: true,
         pefcontinuo: true,
-        tiempoespiracion: true
-        
+        tiempoespiracion: true,
       },
       falloKey: null,
     };
@@ -81,7 +75,6 @@ export const generarCriterios = (): {
       volumenextrapolado: falloKey !== "volumenextrapolado",
       pefcontinuo:        falloKey !== "pefcontinuo",
       tiempoespiracion:   falloKey !== "tiempoespiracion",
-
     },
     falloKey,
   };
@@ -131,20 +124,16 @@ const zAleatorio = (zMin: number, zMax: number): number =>
 interface RangoZ { min: number; max: number }
 interface RangosPatron { fvc: RangoZ; fev1: RangoZ; fev1fvc: RangoZ }
 
-const NORMAL:                        RangosPatron = { fvc: { min: -1.54, max:  1.54 }, fev1: { min: -1.54, max:  1.54 }, fev1fvc: { min: -1.54, max:  1.54 } };
-const OBSTRUCTIVO_LEVE:              RangosPatron = { fvc: { min: -1.54, max:  0.5  }, fev1: { min: -2.4,  max: -1.74 }, fev1fvc: { min: -2.4,  max: -1.74 } };
-const OBSTRUCTIVO_MODERADO:          RangosPatron = { fvc: { min: -2.4,  max: -1.54 }, fev1: { min: -3.9,  max: -2.6  }, fev1fvc: { min: -3.9,  max: -2.6  } };
-const RESTRICTIVO_LEVE:              RangosPatron = { fvc: { min: -2.4,  max: -1.74 }, fev1: { min: -2.4,  max: -1.74 }, fev1fvc: { min: -0.5,  max:  1.0  } };
-const RESTRICTIVO_MODERADO:          RangosPatron = { fvc: { min: -3.9,  max: -2.6  }, fev1: { min: -3.9,  max: -2.6  }, fev1fvc: { min:  0.0,  max:  1.5  } };
-const OBSTRUCTIVO_POST_SIGNIFICATIVO:RangosPatron = { fvc: { min: -1.0,  max:  0.5  }, fev1: { min: -1.64, max: -0.3  }, fev1fvc: { min: -1.64, max: -0.3  } };
-const RESTRICTIVO_POST_LEVE:         RangosPatron = { fvc: { min: -2.2,  max: -1.54 }, fev1: { min: -2.2,  max: -1.54 }, fev1fvc: { min: -0.5,  max:  1.0  } };
-const NORMAL_POST:                   RangosPatron = { fvc: { min: -1.54, max:  0.5  }, fev1: { min: -1.54, max:  0.5  }, fev1fvc: { min: -1.54, max:  0.5  } };
+const NORMAL:              RangosPatron = { fvc: { min: -1.54, max:  1.54 }, fev1: { min: -1.54, max:  1.54 }, fev1fvc: { min: -1.54, max:  1.54 } };
+const OBSTRUCTIVO_LEVE:    RangosPatron = { fvc: { min: -1.54, max:  0.5  }, fev1: { min: -2.4,  max: -1.74 }, fev1fvc: { min: -2.4,  max: -1.74 } };
+const OBSTRUCTIVO_MODERADO:RangosPatron = { fvc: { min: -2.4,  max: -1.54 }, fev1: { min: -3.9,  max: -2.6  }, fev1fvc: { min: -3.9,  max: -2.6  } };
+const RESTRICTIVO_LEVE:    RangosPatron = { fvc: { min: -2.4,  max: -1.74 }, fev1: { min: -2.4,  max: -1.74 }, fev1fvc: { min: -0.5,  max:  1.0  } };
+const RESTRICTIVO_MODERADO:RangosPatron = { fvc: { min: -3.9,  max: -2.6  }, fev1: { min: -3.9,  max: -2.6  }, fev1fvc: { min:  0.0,  max:  1.5  } };
 
 // ============================================================
 // TRANSFORMACIONES — PATRÓN CLÍNICO
 // ============================================================
 
-/** Obstrucción: scoop cóncavo en el tramo descendente. factor 0–1. */
 export const aplicarObstruccion = (
   curva: number[][],
   fvc: number,
@@ -156,17 +145,11 @@ export const aplicarObstruccion = (
     return [x, y * Math.max(f, 0.05)];
   });
 
-/** Restricción: escala la curva hacia adentro. */
 export const aplicarRestriccion = (curva: number[][]): number[][] =>
   curva.map(([x, y]) =>
     x <= 0 ? [x, y * 0.70] : [x * 0.65, y * 0.70],
   );
 
-/**
- * Tos: spike asimétrico (subida rápida, bajada lenta).
- * Posición dispersa (15–75 % del FVC), amplitud y ancho variables,
- * ~13 puntos en un rango de 0.35–0.50 L.
- */
 export const aplicarTos = (curva: number[][], fvc: number): number[][] => {
   const xTos = fvc * (0.15 + Math.random() * 0.60);
 
@@ -205,7 +188,6 @@ export const aplicarTos = (curva: number[][], fvc: number): number[][] => {
   return resultado;
 };
 
-/** Aplica patrón clínico completo (obstrucción + restricción + tos). */
 export const aplicarPatron = (
   curva: number[][],
   fvc: number,
@@ -224,11 +206,6 @@ export const aplicarPatron = (
 // TRANSFORMACIONES — CRITERIOS DE ACEPTABILIDAD
 // ============================================================
 
-/**
- * ESFUERZO MÁXIMO (fallo): reduce el flujo en toda la curva de exhalación
- * forzada. Sin ondulaciones — el aspecto es una maniobra uniformemente baja
- * que no alcanza el esfuerzo esperado.
- */
 export const aplicarFalloEsfuerzoMaximo = (
   curva: number[][],
   _fvc: number,
@@ -247,20 +224,12 @@ export const aplicarFalloEsfuerzoMaximo = (
       return [x, y * 0.4];
     }
     const tDesc = (i - idxPef) / Math.max(1, curva.length - 1 - idxPef);
-    // factor base de aplastamiento
     const base = y * (0.4 + tDesc * 0.08);
-    // ondulaciones sutiles sobre el tramo descendente
     const ondula = base * 0.12 * Math.sin(tDesc * Math.PI * 9) * (1 - tDesc);
     return [x, base + ondula];
   });
 };
 
-/**
- * VOLUMEN EXTRAPOLADO (fallo): desplaza el tramo final de la inhalación
- * post-forzada para que termine en x = −vbeArtificial en lugar del volumen
- * residual (~0). Simula que el paciente no completó la inspiración previa
- * antes de comenzar la espiración forzada.
- */
 export const aplicarFalloVolumenExtrapolado = (
   inhalacionPostForzada: number[][],
   fvcM: number,
@@ -296,9 +265,6 @@ export const aplicarFalloVolumenExtrapolado = (
   };
 };
 
-/**
- * PEF CONTINUO (fallo): artefacto de tos sobre la exhalación forzada.
- */
 export const aplicarFalloPefContinuo = (
   curva: number[][],
   fvc: number,
@@ -312,7 +278,6 @@ export const aplicarFalloPefContinuo = (
     const dist = Math.abs(x - xTos);
     if (dist > ancho) return [x, y];
     const t = dist / ancho;
-    // pico asimétrico: sube rápido antes del centro, baja lento después
     const factor = x < xTos
       ? amplitud * Math.pow(1 - t, 0.4)
       : amplitud * Math.pow(1 - t, 1.8);
@@ -320,22 +285,12 @@ export const aplicarFalloPefContinuo = (
   });
 };
 
-/**
- * TIEMPO ESPIRACIÓN (fallo): corta la exhalación forzada en el espacio F/V
- * al 70–85 % del recorrido REAL de la curva (xMax), independiente del FVC
- * teórico y de factorCompresionX. Cae abruptamente a 0.
- *
- * IMPORTANTE: la curva V/T no se toca. Corregir.tsx detecta este fallo
- * directamente desde el falloKey del payload (no desde V/T), por lo que
- * tiempoEspiracionCumple debe forzarse a false cuando falloKey === "tiempoespiracion".
- */
 export const aplicarFalloTiempoEspiracion = (
   exhalacionForzada: number[][],
   _fvcM: number,
 ): number[][] => {
   if (exhalacionForzada.length === 0) return exhalacionForzada;
 
-  // Usar el máximo x real de la curva (ya incorpora factorCompresionX)
   const xMax = Math.max(...exhalacionForzada.map(([x]) => x));
   const proporcionCorte = 0.50 + Math.random() * 0.15;
   const volCorte = xMax * proporcionCorte;
@@ -357,9 +312,6 @@ export const aplicarFalloTiempoEspiracion = (
   return cortada;
 };
 
-// ── vtestables: no se necesita función de transformación.
-// El fallo se maneja en Maniobra.tsx omitiendo bucle1 y bucle2 del ensamblado.
-
 // ============================================================
 // GENERADOR DE ÍNDICES ANCLADO A RANGOS Z
 // ============================================================
@@ -375,37 +327,68 @@ export const generarIndicesAleatorios = (
   fev1Teorico: number,
   mls?: ParametrosMLS,
   patron?: PatronClinico | null,
-  faseActual: "pre" | "post" = "pre",
 ): { fvc: number; fev1: number; fev1fvc: number } => {
   if (!mls) {
-    const mejora =
-      faseActual === "post" && patron?.respuestaBD === "significativa" ? 1.14 :
-      faseActual === "post" && patron?.respuestaBD === "leve"          ? 1.06 : 1;
-    const fvc  = fvcTeorico  * mejora * (1 + Math.random() * 0.06 - 0.03);
-    const fev1 = fev1Teorico * mejora * (1 + Math.random() * 0.06 - 0.03);
+    const fvc  = fvcTeorico  * (1 + Math.random() * 0.06 - 0.03);
+    const fev1 = fev1Teorico * (1 + Math.random() * 0.06 - 0.03);
     return { fvc, fev1, fev1fvc: fev1 / fvc };
   }
 
-  let rangos: RangosPatron;
-  if (faseActual === "post") {
-    rangos =
-      patron?.obstruccion && patron.respuestaBD === "significativa"
-        ? OBSTRUCTIVO_POST_SIGNIFICATIVO
-        : patron?.restriccion
-          ? RESTRICTIVO_POST_LEVE
-          : NORMAL_POST;
-  } else {
-    rangos =
-      patron?.obstruccion && !patron?.restriccion
-        ? Math.random() < 0.5 ? OBSTRUCTIVO_LEVE : OBSTRUCTIVO_MODERADO
-        : patron?.restriccion && !patron?.obstruccion
-          ? Math.random() < 0.5 ? RESTRICTIVO_LEVE : RESTRICTIVO_MODERADO
-          : NORMAL;
-  }
+  const rangos: RangosPatron =
+    patron?.obstruccion && !patron?.restriccion
+      ? Math.random() < 0.5 ? OBSTRUCTIVO_LEVE : OBSTRUCTIVO_MODERADO
+      : patron?.restriccion && !patron?.obstruccion
+        ? Math.random() < 0.5 ? RESTRICTIVO_LEVE : RESTRICTIVO_MODERADO
+        : NORMAL;
 
   return {
     fvc:     yDesdeZ(zAleatorio(rangos.fvc.min,     rangos.fvc.max),     mls.fvc),
     fev1:    yDesdeZ(zAleatorio(rangos.fev1.min,    rangos.fev1.max),    mls.fev1),
     fev1fvc: yDesdeZ(zAleatorio(rangos.fev1fvc.min, rangos.fev1fvc.max), mls.fev1fvc),
+  };
+};
+
+// ============================================================
+// GENERADOR DE ÍNDICES POST — anclado al pre
+// ============================================================
+
+/**
+ * Genera índices post-BD partiendo de los valores pre reales.
+ * El delta se expresa como % del teórico (criterio ATS/ERS 2019).
+ *
+ * ninguna:       ±1–5%  bidireccional → nunca supera 10% en positivo
+ * leve:          baja raramente (15%), sube 4–9% → siempre sub-umbral
+ * significativa: siempre sube ≥10%
+ */
+const calcularDelta = (
+  m: number,
+  tipo: PatronClinico["respuestaBD"],
+): number => {
+  const r = Math.random();
+  const signo = Math.random();
+  switch (tipo) {
+    case "ninguna":
+      return m * (signo < 0.4 ? -(0.01 + r * 0.04)
+                              :  (0.01 + r * 0.04));
+    case "leve":
+      return m * (signo < 0.15 ? -(0.01 + r * 0.03)
+                               :  (0.04 + r * 0.05));
+    case "significativa":
+      return m * (0.10 + r * 0.08);
+  }
+};
+
+export const generarIndicesPost = (
+  indicesPre: { fvc: number; fev1: number },
+  respuestaBD: PatronClinico["respuestaBD"],
+  mls: ParametrosMLS,
+): { fvc: number; fev1: number; fev1fvc: number } => {
+  const fvcPost  = indicesPre.fvc  + calcularDelta(mls.fvc.m,  respuestaBD);
+  const fev1Post = indicesPre.fev1 + calcularDelta(mls.fev1.m, respuestaBD);
+
+  return {
+    fvc:     fvcPost,
+    fev1:    fev1Post,
+    fev1fvc: fev1Post / fvcPost,
   };
 };

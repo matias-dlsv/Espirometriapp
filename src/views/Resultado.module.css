@@ -112,7 +112,7 @@
 
 .tableSection {
   width: 100%;
-  max-width: 820px;
+  max-width: 1100px;
 }
 
 .resultsTable {
@@ -122,7 +122,7 @@
 }
 
 .resultsTable th {
-  padding: 12px 16px;
+  padding: 12px 10px;
   text-align: center;
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -135,7 +135,7 @@
 .resultsTable th:first-child { text-align: left; }
 
 .resultsTable td {
-  padding: 16px 16px;
+  padding: 12px 10px;
   text-align: center;
   border-bottom: 1px solid #f0ece8;
 }

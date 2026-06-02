@@ -14,7 +14,7 @@ export interface ParametrosEspirometria {
 }
 
 export interface ManiobraGuardada {
-  id?: number; // Añadido para mejor control
+  id?: number;
   color?: string;
   datosFlujoVolumen: number[][];
   datosVolumenTiempo: number[][];
@@ -23,6 +23,7 @@ export interface ManiobraGuardada {
     esfuerzomaximo: boolean;
     volumenextrapolado: boolean;
     pefcontinuo: boolean;
+    tiempoespiracion: boolean;
   };
   fecha: string;
   indices?: {
@@ -30,7 +31,7 @@ export interface ManiobraGuardada {
     fev1: number;
     fev1fvc: number;
     pef?: number;
-  }
+  };
 }
 
 export interface DatosEspirometria {
@@ -38,7 +39,7 @@ export interface DatosEspirometria {
   curva_generada: number[];
   fecha: string;
   maniobras?: ManiobraGuardada[];
-  maniobrasPost?: ManiobraGuardada[]
+  maniobrasPost?: ManiobraGuardada[];
 }
 
 export interface Paciente {
@@ -57,17 +58,19 @@ interface PacientState {
   pacienteSeleccionado: Paciente | null;
   faseActual: "pre" | "post";
   origenCasoClinico: boolean;
+  patronActivo: PatronClinico | null;
+
   setFase: (fase: "pre" | "post") => void;
   setOrigenCasoClinico: (valor: boolean) => void;
   addPaciente: (paciente: Paciente) => void;
   setPacientes: (pacientes: Paciente[]) => void;
   seleccionarPaciente: (id: string) => void;
   guardarManiobra: (pacienteId: string, maniobra: ManiobraGuardada) => void;
-  patronActivo: PatronClinico | null;
   setPatron: (patron: PatronClinico | null) => void;
+  getMejorPre: () => { fvc: number; fev1: number } | null;
 }
 
-export const usePacientStore = create<PacientState>((set) => ({
+export const usePacientStore = create<PacientState>((set, get) => ({
   pacientes: [],
   pacienteSeleccionado: null,
   patronActivo: null,
@@ -94,6 +97,20 @@ export const usePacientStore = create<PacientState>((set) => ({
 
   setPatron: (patron) => set(() => ({ patronActivo: patron })),
 
+  getMejorPre: () => {
+    const state = get();
+    const maniobras =
+      state.pacienteSeleccionado?.espirometrias?.[0]?.maniobras ?? [];
+    if (maniobras.length === 0) return null;
+    const mejor = maniobras.reduce((a, b) => {
+      const sA = (a.indices?.fvc ?? 0) + (a.indices?.fev1 ?? 0);
+      const sB = (b.indices?.fvc ?? 0) + (b.indices?.fev1 ?? 0);
+      return sB > sA ? b : a;
+    });
+    return mejor.indices
+      ? { fvc: mejor.indices.fvc, fev1: mejor.indices.fev1 }
+      : null;
+  },
 
   guardarManiobra: (pacienteId, maniobra) =>
     set((state) => {
@@ -104,11 +121,16 @@ export const usePacientStore = create<PacientState>((set) => ({
             const ultimaIndex = espirometriasActualizadas.length - 1;
             const ultimaEspiro = { ...espirometriasActualizadas[ultimaIndex] };
 
-            // NUEVO: guarda en el array correcto según la fase
             if (state.faseActual === "pre") {
-              ultimaEspiro.maniobras = [...(ultimaEspiro.maniobras || []), maniobra];
+              ultimaEspiro.maniobras = [
+                ...(ultimaEspiro.maniobras || []),
+                maniobra,
+              ];
             } else {
-              ultimaEspiro.maniobrasPost = [...(ultimaEspiro.maniobrasPost || []), maniobra];
+              ultimaEspiro.maniobrasPost = [
+                ...(ultimaEspiro.maniobrasPost || []),
+                maniobra,
+              ];
             }
 
             espirometriasActualizadas[ultimaIndex] = ultimaEspiro;
@@ -118,7 +140,8 @@ export const usePacientStore = create<PacientState>((set) => ({
         return paciente;
       });
 
-      const nuevoSeleccionado = nuevosPacientes.find(p => p.id === pacienteId) || null;
+      const nuevoSeleccionado =
+        nuevosPacientes.find((p) => p.id === pacienteId) || null;
       return { pacientes: nuevosPacientes, pacienteSeleccionado: nuevoSeleccionado };
     }),
 }));

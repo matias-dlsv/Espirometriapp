@@ -12,6 +12,7 @@ import {
   calcularRespuestaBD,
   generarIndicesAleatorios,
   generarCriterios,
+  generarIndicesPost,
 } from "../utils/transformaciones";
 
 interface ManiobraProps {
@@ -62,13 +63,22 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
     vbe,
     criteriosManiobra,
   } = useMemo(() => {
-    const indicesManiobra = generarIndicesAleatorios(
-      fvc,
-      fev1,
-      mls,
-      patronActivo,
-      faseActual,
-    );
+    const indicesManiobra =
+      faseActual === "post" && patronActivo
+        ? (() => {
+            const mejorPre = usePacientStore.getState().getMejorPre();
+            const base = mejorPre ?? { fvc, fev1 }; // fallback al teórico si no hay pre
+            return generarIndicesPost(
+              base,
+              patronActivo.respuestaBD,
+              mls ?? {
+                fvc: { m: fvc, l: 0, s: 0.1 },
+                fev1: { m: fev1, l: 0, s: 0.1 },
+                fev1fvc: { m: fev1 / fvc, l: 0, s: 0.1 },
+              },
+            );
+          })()
+        : generarIndicesAleatorios(fvc, fev1, mls, patronActivo);
 
     let factorObstruccion = 1;
     if (faseActual === "post" && patronActivo) {
@@ -302,13 +312,22 @@ export default function Maniobra({ onBack, onNavigate }: ManiobraProps) {
   const guardarManiobra = usePacientStore((state) => state.guardarManiobra);
 
   const generarUnaManiobra = (sinFallos = false) => {
-    const indices = generarIndicesAleatorios(
-      fvc,
-      fev1,
-      mls,
-      patronActivo,
-      faseActual,
-    );
+    const indices =
+      faseActual === "post" && patronActivo
+        ? (() => {
+            const mejorPre = usePacientStore.getState().getMejorPre();
+            const base = mejorPre ?? { fvc, fev1 };
+            return generarIndicesPost(
+              base,
+              patronActivo.respuestaBD,
+              mls ?? {
+                fvc: { m: fvc, l: 0, s: 0.1 },
+                fev1: { m: fev1, l: 0, s: 0.1 },
+                fev1fvc: { m: fev1 / fvc, l: 0, s: 0.1 },
+              },
+            );
+          })()
+        : generarIndicesAleatorios(fvc, fev1, mls, patronActivo);
     let factorObstruccion = 1;
     if (faseActual === "post" && patronActivo) {
       factorObstruccion = calcularRespuestaBD(
