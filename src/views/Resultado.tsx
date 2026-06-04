@@ -332,7 +332,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                     <TooltipTerm term="Z-score">Z-Post</TooltipTerm>
                   </th>
                 )}
-                {hayPost && <th>%Pre</th>}
+                {hayPost && <th>%Cambio</th>}
               </tr>
             </thead>
             <tbody>
@@ -351,7 +351,9 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                   const pctPost =
                     realPost && teorico > 0 ? (realPost / teorico) * 100 : null;
                   const pctPrePost =
-                    realPost && real > 0 ? (realPost / real) * 100 : null;
+                    realPost != null && teorico > 0
+                      ? ((realPost - real) / teorico) * 100
+                      : null;
                   const zPre = calcularZScore(real, mls.m, mls.l, mls.s);
                   const { label: zLabelPre, color: zColorPre } =
                     interpretarZ(zPre);

@@ -341,11 +341,14 @@ export const generarIndicesAleatorios = (
         ? Math.random() < 0.5 ? RESTRICTIVO_LEVE : RESTRICTIVO_MODERADO
         : NORMAL;
 
-  return {
-    fvc:     yDesdeZ(zAleatorio(rangos.fvc.min,     rangos.fvc.max),     mls.fvc),
-    fev1:    yDesdeZ(zAleatorio(rangos.fev1.min,    rangos.fev1.max),    mls.fev1),
-    fev1fvc: yDesdeZ(zAleatorio(rangos.fev1fvc.min, rangos.fev1fvc.max), mls.fev1fvc),
-  };
+const fvcVal  = yDesdeZ(zAleatorio(rangos.fvc.min,  rangos.fvc.max),  mls.fvc);
+const fev1Val = yDesdeZ(zAleatorio(rangos.fev1.min, rangos.fev1.max), mls.fev1);
+
+return {
+  fvc:     fvcVal,
+  fev1:    fev1Val,
+  fev1fvc: fev1Val / fvcVal,  // ← derivado, nunca generado aparte
+};
 };
 
 // ============================================================
@@ -387,8 +390,8 @@ export const generarIndicesPost = (
   const fev1Post = indicesPre.fev1 + calcularDelta(mls.fev1.m, respuestaBD);
 
   return {
-    fvc:     fvcPost,
-    fev1:    fev1Post,
-    fev1fvc: fev1Post / fvcPost,
-  };
+  fvc:     fvcPost,
+  fev1:    fev1Post,
+  fev1fvc: fev1Post / fvcPost,  
+};
 };
