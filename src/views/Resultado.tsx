@@ -227,6 +227,8 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
 
   const colorPct = (pct: number) =>
     pct >= 80 ? "#10b981" : pct >= 70 ? "#f59e0b" : "#ef4444";
+  const colorCambio = (pct: number) =>
+    pct >= 10 ? "#10b981" : pct >= 5 ? "#f59e0b" : "#ef4444";
 
   // ── Evaluación ────────────────────────────────────────────
   const [patronSeleccionado, setPatronSeleccionado] = useState<string | null>(
@@ -453,8 +455,8 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                             <span
                               className={styles.porcentajeBadge}
                               style={{
-                                color: colorPct(pctPrePost),
-                                borderColor: colorPct(pctPrePost),
+                                color: colorCambio(pctPrePost), // ← antes: colorPct
+                                borderColor: colorCambio(pctPrePost), // ← antes: colorPct
                               }}
                             >
                               {pctPrePost.toFixed(1)}%
