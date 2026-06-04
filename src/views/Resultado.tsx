@@ -32,14 +32,6 @@ const calcularLIN = (m: number, l: number, s: number): number => {
   return m * Math.pow(1 + l * s * -1.645, 1 / l);
 };
 
-const interpretarZ = (z: number): { label: string; color: string } => {
-  if (isNaN(z)) return { label: "—", color: "#333" };
-  if (z >= -1.645) return { label: "Normal", color: "#10b981" };
-  if (z >= -2.5) return { label: "Leve ↓", color: "#f59e0b" };
-  if (z >= -4.0) return { label: "Moderado ↓", color: "#f97316" };
-  return { label: "Grave ↓", color: "#ef4444" };
-};
-
 // ============================================================
 // HELPERS EVALUACIÓN
 // ============================================================
@@ -225,11 +217,6 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
   const formatear = (val: number, esRatio?: boolean, unidad?: string) =>
     esRatio ? `${(val * 100).toFixed(1)}%` : `${val.toFixed(2)} ${unidad}`;
 
-  const colorPct = (pct: number) =>
-    pct >= 80 ? "#10b981" : pct >= 70 ? "#f59e0b" : "#ef4444";
-  const colorCambio = (pct: number) =>
-    pct >= 10 ? "#10b981" : pct >= 5 ? "#f59e0b" : "#ef4444";
-
   // ── Evaluación ────────────────────────────────────────────
   const [patronSeleccionado, setPatronSeleccionado] = useState<string | null>(
     null,
@@ -320,7 +307,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                 <th>Variable</th>
                 <th>Teo</th>
                 <th>
-                  <TooltipTerm term="Z-score">LIN</TooltipTerm>
+                  <TooltipTerm term="LLN">LIN</TooltipTerm>
                 </th>
                 <th>Pre-BD</th>
                 <th>%Teo</th>
@@ -357,13 +344,9 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                       ? ((realPost - real) / teorico) * 100
                       : null;
                   const zPre = calcularZScore(real, mls.m, mls.l, mls.s);
-                  const { label: zLabelPre, color: zColorPre } =
-                    interpretarZ(zPre);
                   const zPost = realPost
                     ? calcularZScore(realPost, mls.m, mls.l, mls.s)
                     : NaN;
-                  const { label: zLabelPost, color: zColorPost } =
-                    interpretarZ(zPost);
 
                   return (
                     <tr key={variable}>
@@ -381,31 +364,17 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                       <td className={styles.teoricoCell}>
                         {formatear(teorico, esRatio, unidad)}
                       </td>
-                      <td className={styles.linCell}>
+                      <td className={styles.teoricoCell}>
                         {isNaN(lin) ? "—" : formatear(lin, esRatio, unidad)}
                       </td>
                       <td className={styles.realCell}>
                         {formatear(real, esRatio, unidad)}
                       </td>
-                      <td>
-                        <span
-                          className={styles.porcentajeBadge}
-                          style={{
-                            color: colorPct(pctPre),
-                            borderColor: colorPct(pctPre),
-                          }}
-                        >
-                          {pctPre.toFixed(1)}%
-                        </span>
+                      <td className={styles.teoricoCell}>
+                        {pctPre.toFixed(1)}%
                       </td>
-                      <td>
-                        <span
-                          className={styles.zscoreBadge}
-                          style={{ color: zColorPre, borderColor: zColorPre }}
-                          title={zLabelPre}
-                        >
-                          {isNaN(zPre) ? "—" : zPre.toFixed(2)}
-                        </span>
+                      <td className={styles.teoricoCell}>
+                        {isNaN(zPre) ? "—" : zPre.toFixed(2)}
                       </td>
                       {hayPost && (
                         <td className={styles.postCell}>
@@ -415,55 +384,24 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                         </td>
                       )}
                       {hayPost && (
-                        <td>
-                          {pctPost !== null ? (
-                            <span
-                              className={styles.porcentajeBadge}
-                              style={{
-                                color: colorPct(pctPost),
-                                borderColor: colorPct(pctPost),
-                              }}
-                            >
-                              {pctPost.toFixed(1)}%
-                            </span>
-                          ) : (
-                            "—"
-                          )}
+                        <td className={styles.teoricoCell}>
+                          {pctPost !== null ? `${pctPost.toFixed(1)}%` : "—"}
                         </td>
                       )}
                       {hayPost && (
-                        <td>
-                          {realPost ? (
-                            <span
-                              className={styles.zscoreBadge}
-                              style={{
-                                color: zColorPost,
-                                borderColor: zColorPost,
-                              }}
-                              title={zLabelPost}
-                            >
-                              {isNaN(zPost) ? "—" : zPost.toFixed(2)}
-                            </span>
-                          ) : (
-                            "—"
-                          )}
+                        <td className={styles.teoricoCell}>
+                          {realPost
+                            ? isNaN(zPost)
+                              ? "—"
+                              : zPost.toFixed(2)
+                            : "—"}
                         </td>
                       )}
                       {hayPost && (
-                        <td>
-                          {pctPrePost !== null ? (
-                            <span
-                              className={styles.porcentajeBadge}
-                              style={{
-                                color: colorCambio(pctPrePost), // ← antes: colorPct
-                                borderColor: colorCambio(pctPrePost), // ← antes: colorPct
-                              }}
-                            >
-                              {pctPrePost.toFixed(1)}%
-                            </span>
-                          ) : (
-                            "—"
-                          )}
+                        <td className={styles.teoricoCell}>
+                          {pctPrePost !== null
+                            ? `${pctPrePost.toFixed(1)}%`
+                            : "—"}
                         </td>
                       )}
                     </tr>
@@ -478,7 +416,7 @@ export default function Resultado({ onBack, onNavigate }: ResultadoProps) {
                     <TooltipTerm term="PEF" />
                   </td>
                   <td className={styles.teoricoCell}>—</td>
-                  <td className={styles.linCell}>—</td>
+                  <td className={styles.teoricoCell}>—</td>
                   <td className={styles.realCell}>{pefPre.toFixed(2)} L/s</td>
                   <td>—</td>
                   <td>—</td>
